@@ -6,6 +6,8 @@ import {
   type LocalTrackPublication,
   ConnectionState,
   VideoPresets,
+  type AudioTrack,
+  type VideoTrack,
 } from "livekit-client";
 import type {
   MediaRoom,
@@ -294,6 +296,7 @@ export class LiveKitRoom implements MediaRoom {
           id: publication.trackSid,
           kind: "audio",
           mediaStreamTrack: track.mediaStreamTrack,
+          sourceTrack: track as AudioTrack,
         });
       }
       if (track.kind === Track.Kind.Video) {
@@ -301,6 +304,7 @@ export class LiveKitRoom implements MediaRoom {
           id: publication.trackSid,
           kind: "video",
           mediaStreamTrack: track.mediaStreamTrack,
+          sourceTrack: track as VideoTrack,
         });
       }
     }

@@ -8,6 +8,7 @@ frontend:
         - pnpm install --no-frozen-lockfile
     build:
       commands:
+        - env | grep -e LIVEKIT_API_KEY -e LIVEKIT_API_SECRET -e NEXT_PUBLIC_LIVEKIT_URL >> .env.production
         - pnpm build
   artifacts:
     baseDirectory: .next

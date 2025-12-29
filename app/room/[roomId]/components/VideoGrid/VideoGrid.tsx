@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { Participant, MediaTrack } from '../../../../media/core/Participant';
+import type { Participant, MediaTrack } from '../../../../../media/core/Participant';
 import styles from './VideoGrid.module.css';
 
 type VideoGridProps = {

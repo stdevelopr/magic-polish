@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import type { ChatMessage } from '../../../../media/core/MediaRoom';
-import styles from './ChatPanel.module.css';
+import { useState } from "react";
+import type { ChatMessage } from "../../../../../media/core/MediaRoom";
+import styles from "./ChatPanel.module.css";
 
 type ChatPanelProps = {
   messages: ChatMessage[];
@@ -10,7 +10,7 @@ type ChatPanelProps = {
 };
 
 export default function ChatPanel({ messages, onSend }: ChatPanelProps) {
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState("");
   const visibleMessages = messages.slice(-3);
 
   return (
@@ -41,7 +41,7 @@ export default function ChatPanel({ messages, onSend }: ChatPanelProps) {
             return;
           }
           onSend(draft.trim());
-          setDraft('');
+          setDraft("");
         }}
       >
         <input

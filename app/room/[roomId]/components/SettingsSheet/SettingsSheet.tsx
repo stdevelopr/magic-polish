@@ -1,6 +1,6 @@
 'use client';
 
-import type { LocalAudioSettings } from '../../../../media/core/MediaRoom';
+import type { LocalAudioSettings } from '../../../../../media/core/MediaRoom';
 import { SlidersHorizontal, X } from 'lucide-react';
 import styles from './SettingsSheet.module.css';
 

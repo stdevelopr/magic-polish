@@ -2,18 +2,127 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { MediaRoom, ChatMessage, RoomState } from '../../../media/core/MediaRoom';
+import type { MediaRoom, ChatMessage, RoomState, LocalAudioSettings } from '../../../media/core/MediaRoom';
 import type { Participant } from '../../../media/core/Participant';
 import { createMediaProvider } from '../../../media/MediaProvider';
-import VideoGrid from './VideoGrid';
-import ChatPanel from './ChatPanel';
-import Controls from './Controls';
+import VideoGrid from './components/VideoGrid/VideoGrid';
+import SettingsSheet from './components/SettingsSheet/SettingsSheet';
+import styles from './RoomView.module.css';
+import { Mic, MicOff, PhoneOff, Video, VideoOff, MoreVertical } from 'lucide-react';
 
 type RoomViewProps = {
   roomId: string;
 };
 
 type Role = 'teacher' | 'student';
+
+function RoomHeader({
+  roomId,
+  roomState,
+  participantCount
+}: {
+  roomId: string;
+  roomState: RoomState;
+  participantCount: number;
+}) {
+  const isLive = roomState === 'connected';
+  const lessonTheme = 'Interactive class';
+
+  return (
+    <div className={styles.topBar}>
+      <div className={styles.headerLeft}>
+        <div className={`${styles.liveBadge} ${isLive ? styles.liveBadgeOn : styles.liveBadgeIdle}`}>
+          <span className={`${styles.liveDot} ${isLive ? styles.liveDotOn : ''}`} />
+          <span>{isLive ? 'On air' : 'Connecting'}</span>
+        </div>
+        <div className={styles.roomMeta}>
+          <p className={styles.roomEyebrow}>Room {roomId}</p>
+          <h2 className={styles.roomTitle}>{lessonTheme}</h2>
+          <p className={styles.roomSubtitle}>Stay present and keep your mic ready.</p>
+        </div>
+      </div>
+
+      <div className={styles.headerRight}>
+        <div className={styles.statPill}>
+          <span className={styles.statLabel}>In room</span>
+          <span className={styles.statValue}>{participantCount}</span>
+        </div>
+        <div className={styles.statPill}>
+          <span className={styles.statLabel}>Status</span>
+          <span className={styles.statValue}>{isLive ? 'Connected' : 'Joining…'}</span>
+        </div>
+      </div>
+
+      <div className={styles.headerCompact}>
+        <span className={`${styles.compactDot} ${isLive ? styles.compactDotOn : ''}`} />
+        <span className={styles.compactStatus}>{isLive ? 'Connected' : 'Connecting'}</span>
+        <span className={styles.compactDivider}>•</span>
+        <span className={styles.compactTheme}>{lessonTheme}</span>
+      </div>
+    </div>
+  );
+}
+
+function ActionBar({
+  audioEnabled,
+  videoEnabled,
+  onToggleAudio,
+  onToggleVideo,
+  onLeave,
+  onOpenSettings
+}: {
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  onToggleAudio: () => void;
+  onToggleVideo: () => void;
+  onLeave: () => void;
+  onOpenSettings: () => void;
+}) {
+  return (
+    <div className={styles.actionBar}>
+      <button
+        className={`${styles.quickButton}${!audioEnabled ? ` ${styles.quickButtonMuted}` : ''}`}
+        type="button"
+        onClick={onToggleAudio}
+        aria-label={audioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+      >
+        {audioEnabled ? (
+          <Mic className={styles.quickIcon} strokeWidth={2.4} />
+        ) : (
+          <MicOff className={styles.quickIcon} strokeWidth={2.4} />
+        )}
+      </button>
+      <button
+        className={`${styles.quickButton}${!videoEnabled ? ` ${styles.quickButtonMuted}` : ''}`}
+        type="button"
+        onClick={onToggleVideo}
+        aria-label={videoEnabled ? 'Turn camera off' : 'Turn camera on'}
+      >
+        {videoEnabled ? (
+          <Video className={styles.quickIcon} strokeWidth={2.4} />
+        ) : (
+          <VideoOff className={styles.quickIcon} strokeWidth={2.4} />
+        )}
+      </button>
+      <button
+        className={`${styles.quickButton} ${styles.quickButtonLeave}`}
+        type="button"
+        onClick={onLeave}
+        aria-label="Leave call"
+      >
+        <PhoneOff className={styles.quickIcon} strokeWidth={2.6} />
+      </button>
+      <button
+        className={`${styles.quickButton} ${styles.quickButtonMuted}`}
+        type="button"
+        onClick={onOpenSettings}
+        aria-label="Open settings"
+      >
+        <MoreVertical className={styles.quickIcon} strokeWidth={2.2} />
+      </button>
+    </div>
+  );
+}
 
 export default function RoomView({ roomId }: RoomViewProps) {
   const router = useRouter();
@@ -26,6 +135,13 @@ export default function RoomView({ roomId }: RoomViewProps) {
   const role: Role = 'student';
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
+  const [audioSettings, setAudioSettings] = useState<LocalAudioSettings>({
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+    gain: 1
+  });
+  const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
   const joinInFlightRef = useRef(false);
@@ -140,6 +256,17 @@ export default function RoomView({ roomId }: RoomViewProps) {
     setVideoEnabled(next);
   }, [room, videoEnabled]);
 
+  const updateAudioSettings = useCallback(
+    async (nextSettings: LocalAudioSettings) => {
+      setAudioSettings(nextSettings);
+      if (!room) {
+        return;
+      }
+      await room.updateLocalAudioSettings(nextSettings);
+    },
+    [room]
+  );
+
   if (!room) {
     return (
       <section className="card fade-in" style={{ maxWidth: 520 }}>
@@ -158,40 +285,33 @@ export default function RoomView({ roomId }: RoomViewProps) {
   }
 
   return (
-    <section className="grid">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
-          <div>
-            <h2 style={{ margin: 0 }}>Live session</h2>
-            <p className="subtitle" style={{ marginBottom: 0 }}>
-              {roomState === 'connected' ? 'Connected' : 'Connecting'} · {participants.length}{' '}
-              participant{participants.length === 1 ? '' : 's'}
-            </p>
-          </div>
-          <div className="badge">Room {roomId}</div>
+    <section className={styles.roomView}>
+      <RoomHeader roomId={roomId} roomState={roomState} participantCount={participants.length} />
+
+      <div className={`card ${styles.stage}`}>
+        <div className={styles.stageBody}>
+          <VideoGrid participants={participants} />
         </div>
       </div>
 
-      <div className="room-layout">
-        <div className="grid">
-          <div className="card">
-            <VideoGrid participants={participants} />
-          </div>
-          <div className="card">
-            <Controls
-              audioEnabled={audioEnabled}
-              videoEnabled={videoEnabled}
-              onToggleAudio={toggleAudio}
-              onToggleVideo={toggleVideo}
-              onLeave={leaveRoom}
-            />
-          </div>
-        </div>
+      <ActionBar
+        audioEnabled={audioEnabled}
+        videoEnabled={videoEnabled}
+        onToggleAudio={toggleAudio}
+        onToggleVideo={toggleVideo}
+        onLeave={leaveRoom}
+        onOpenSettings={() => {
+          setShowSettings(true);
+        }}
+      />
 
-        <div className="card">
-          <ChatPanel messages={messages} onSend={sendMessage} />
-        </div>
-      </div>
+      <SettingsSheet
+        open={showSettings}
+        audioSettings={audioSettings}
+        onUpdateAudioSettings={updateAudioSettings}
+        onClose={() => setShowSettings(false)}
+      />
+
     </section>
   );
 }

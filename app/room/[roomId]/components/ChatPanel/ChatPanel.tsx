@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { ChatMessage } from '../../../media/core/MediaRoom';
+import type { ChatMessage } from '../../../../media/core/MediaRoom';
+import styles from './ChatPanel.module.css';
 
 type ChatPanelProps = {
   messages: ChatMessage[];
@@ -10,21 +11,22 @@ type ChatPanelProps = {
 
 export default function ChatPanel({ messages, onSend }: ChatPanelProps) {
   const [draft, setDraft] = useState('');
+  const visibleMessages = messages.slice(-3);
 
   return (
-    <div className="chat-panel">
+    <div className={styles.chatPanel}>
       <div>
         <h3 style={{ marginTop: 0 }}>Class chat</h3>
         <p className="subtitle" style={{ marginBottom: 0 }}>
           Share links, ask questions, or post exercises.
         </p>
       </div>
-      <div className="chat-messages">
-        {messages.length === 0 ? (
+      <div className={styles.chatMessages}>
+        {visibleMessages.length === 0 ? (
           <p className="subtitle">No messages yet. Start the conversation.</p>
         ) : (
-          messages.map((message) => (
-            <div className="chat-message" key={message.id}>
+          visibleMessages.map((message) => (
+            <div className={styles.chatMessage} key={message.id}>
               <strong>{message.participantName}</strong>
               <span>{message.message}</span>
             </div>

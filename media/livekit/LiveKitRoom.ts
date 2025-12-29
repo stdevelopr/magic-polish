@@ -6,13 +6,27 @@ import {
   type LocalTrackPublication,
   ConnectionState,
 } from "livekit-client";
-import type { MediaRoom, RoomState, ChatMessage } from "../core/MediaRoom";
+import type { MediaRoom, RoomState, ChatMessage, LocalAudioSettings } from "../core/MediaRoom";
 import type { Participant, MediaTrack } from "../core/Participant";
+import { createGainProcessor } from "./AudioGainProcessor";
 
 const CHAT_TOPIC = "classroom-chat";
 
 export class LiveKitRoom implements MediaRoom {
-  private room = new Room();
+  private audioSettings: LocalAudioSettings = {
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+    gain: 1,
+  };
+  private gainProcessor = createGainProcessor(this.audioSettings.gain);
+  private room = new Room({
+    audioCaptureDefaults: {
+      autoGainControl: true,
+      echoCancellation: true,
+      noiseSuppression: true,
+    },
+  });
   private participants: Participant[] = [];
   private state: RoomState = "disconnected";
   private participantListeners = new Set<
@@ -59,12 +73,60 @@ export class LiveKitRoom implements MediaRoom {
   }
 
   async setLocalAudioEnabled(enabled: boolean): Promise<void> {
-    await this.room.localParticipant.setMicrophoneEnabled(enabled);
+    if (enabled) {
+      await this.room.localParticipant.setMicrophoneEnabled(true, {
+        autoGainControl: this.audioSettings.autoGainControl,
+        echoCancellation: this.audioSettings.echoCancellation,
+        noiseSuppression: this.audioSettings.noiseSuppression,
+        ...(this.audioSettings.gain !== 1 ? { processor: this.gainProcessor } : {}),
+      });
+    } else {
+      await this.room.localParticipant.setMicrophoneEnabled(false);
+    }
     this.refreshParticipants();
   }
 
   async setLocalVideoEnabled(enabled: boolean): Promise<void> {
     await this.room.localParticipant.setCameraEnabled(enabled);
+    this.refreshParticipants();
+  }
+
+  async updateLocalAudioSettings(settings: LocalAudioSettings): Promise<void> {
+    const previousSettings = this.audioSettings;
+    this.audioSettings = settings;
+    this.gainProcessor.setGain(settings.gain);
+
+    const constraintsChanged =
+      previousSettings.autoGainControl !== settings.autoGainControl ||
+      previousSettings.echoCancellation !== settings.echoCancellation ||
+      previousSettings.noiseSuppression !== settings.noiseSuppression;
+    const processorUsageChanged =
+      (previousSettings.gain === 1) !== (settings.gain === 1);
+    if (!constraintsChanged) {
+      if (!processorUsageChanged) {
+        return;
+      }
+    }
+
+    if (processorUsageChanged && settings.gain === 1 && !constraintsChanged) {
+      // No need to republish; gain processor is effectively neutral.
+      return;
+    }
+
+    const local = this.room.localParticipant;
+    const micPublication = local.getTrackPublication(Track.Source.Microphone);
+    const micEnabled = Boolean(micPublication?.track && !micPublication.isMuted);
+    if (!micEnabled) {
+      return;
+    }
+
+    await local.setMicrophoneEnabled(false);
+    await local.setMicrophoneEnabled(true, {
+      autoGainControl: settings.autoGainControl,
+      echoCancellation: settings.echoCancellation,
+      noiseSuppression: settings.noiseSuppression,
+      ...(settings.gain !== 1 ? { processor: this.gainProcessor } : {}),
+    });
     this.refreshParticipants();
   }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 
+export const runtime = 'nodejs';
+
 type TokenRequest = {
   roomId: string;
   participantName: string;
@@ -60,7 +62,11 @@ export async function POST(request: Request) {
   const apiSecret = process.env.LIVEKIT_API_SECRET;
 
   if (!apiKey || !apiSecret) {
-    return NextResponse.json({ error: 'Server misconfigured.' }, { status: 500 });
+    const missing = [
+      !apiKey ? 'LIVEKIT_API_KEY' : null,
+      !apiSecret ? 'LIVEKIT_API_SECRET' : null
+    ].filter(Boolean);
+    return NextResponse.json({ error: 'Server misconfigured.', missing }, { status: 500 });
   }
 
   const identity = `${body.participantName}-${crypto.randomUUID()}`;

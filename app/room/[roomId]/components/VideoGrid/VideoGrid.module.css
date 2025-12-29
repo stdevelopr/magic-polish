@@ -5,6 +5,9 @@
   height: 100%;
   min-height: 0;
   position: relative;
+  width: 100%;
+  justify-items: stretch;
+  align-items: stretch;
 }
 
 .videoTile {
@@ -15,6 +18,7 @@
   aspect-ratio: 10 / 16;
   border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  width: 100%;
 }
 
 .videoTilePip {
@@ -96,5 +100,15 @@
 
   .videoTilePip {
     width: clamp(160px, 18vw, 360px);
+  }
+}
+
+@media (max-width: 720px) {
+  .videoTile {
+    aspect-ratio: 4 / 5;
+  }
+
+  .videoTilePip {
+    width: clamp(120px, 34vw, 220px);
   }
 }

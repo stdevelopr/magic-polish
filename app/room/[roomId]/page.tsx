@@ -7,7 +7,7 @@ type RoomPageProps = {
 
 export default function RoomPage({ params }: RoomPageProps) {
   return (
-    <main className={`container ${styles.roomPage}`}>
+    <main className={styles.roomPage}>
       <RoomView roomId={params.roomId} />
     </main>
   );

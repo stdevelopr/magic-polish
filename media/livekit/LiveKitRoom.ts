@@ -5,8 +5,14 @@ import {
   type RemoteTrackPublication,
   type LocalTrackPublication,
   ConnectionState,
+  VideoPresets,
 } from "livekit-client";
-import type { MediaRoom, RoomState, ChatMessage, LocalAudioSettings } from "../core/MediaRoom";
+import type {
+  MediaRoom,
+  RoomState,
+  ChatMessage,
+  LocalAudioSettings,
+} from "../core/MediaRoom";
 import type { Participant, MediaTrack } from "../core/Participant";
 import { createGainProcessor } from "./AudioGainProcessor";
 
@@ -21,6 +27,16 @@ export class LiveKitRoom implements MediaRoom {
   };
   private gainProcessor = createGainProcessor(this.audioSettings.gain);
   private room = new Room({
+    // automatically manage subscribed video quality
+    adaptiveStream: true,
+
+    // optimize publishing bandwidth and CPU for published tracks
+    dynacast: true,
+
+    // default capture settings
+    videoCaptureDefaults: {
+      resolution: VideoPresets.h720.resolution,
+    },
     audioCaptureDefaults: {
       autoGainControl: true,
       echoCancellation: true,
@@ -34,13 +50,13 @@ export class LiveKitRoom implements MediaRoom {
   >();
   private chatListeners = new Set<(message: ChatMessage) => void>();
   private stateListeners = new Set<(state: RoomState) => void>();
-
-  constructor() {
-    this.bindEvents();
-  }
+  private eventsBound = false;
 
   async connect(options: { url: string; token: string }): Promise<void> {
     this.setState("connecting");
+    // pre-warm connection, this can be called as early as your page is loaded
+    await this.room.prepareConnection(options.url, options.token);
+    this.bindEvents();
     await this.room.connect(options.url, options.token);
     await this.room.localParticipant.enableCameraAndMicrophone();
     this.refreshParticipants();
@@ -78,7 +94,9 @@ export class LiveKitRoom implements MediaRoom {
         autoGainControl: this.audioSettings.autoGainControl,
         echoCancellation: this.audioSettings.echoCancellation,
         noiseSuppression: this.audioSettings.noiseSuppression,
-        ...(this.audioSettings.gain !== 1 ? { processor: this.gainProcessor } : {}),
+        ...(this.audioSettings.gain !== 1
+          ? { processor: this.gainProcessor }
+          : {}),
       });
     } else {
       await this.room.localParticipant.setMicrophoneEnabled(false);
@@ -115,7 +133,9 @@ export class LiveKitRoom implements MediaRoom {
 
     const local = this.room.localParticipant;
     const micPublication = local.getTrackPublication(Track.Source.Microphone);
-    const micEnabled = Boolean(micPublication?.track && !micPublication.isMuted);
+    const micEnabled = Boolean(
+      micPublication?.track && !micPublication.isMuted
+    );
     if (!micEnabled) {
       return;
     }
@@ -150,6 +170,13 @@ export class LiveKitRoom implements MediaRoom {
   }
 
   private bindEvents(): void {
+    if (this.eventsBound) {
+      return;
+    }
+    this.eventsBound = true;
+    this.room.on(RoomEvent.ActiveSpeakersChanged, () =>
+      this.refreshParticipants()
+    );
     this.room.on(RoomEvent.ParticipantConnected, () =>
       this.refreshParticipants()
     );
@@ -212,6 +239,9 @@ export class LiveKitRoom implements MediaRoom {
 
   private refreshParticipants(): void {
     const participants: Participant[] = [];
+    const activeSpeakers = new Set(
+      this.room.activeSpeakers.map((speaker) => speaker.identity)
+    );
 
     const local = this.room.localParticipant;
     if (local) {
@@ -219,13 +249,18 @@ export class LiveKitRoom implements MediaRoom {
         id: local.identity,
         name: local.name ?? "You",
         isLocal: true,
+        isSpeaking: activeSpeakers.has(local.identity),
         tracks: this.collectTracks(local.trackPublications.values()),
       });
     }
 
     const remoteParticipants =
-      (this.room as { remoteParticipants?: Map<string, any>; participants?: Map<string, any> })
-        .remoteParticipants ??
+      (
+        this.room as {
+          remoteParticipants?: Map<string, any>;
+          participants?: Map<string, any>;
+        }
+      ).remoteParticipants ??
       (this.room as { participants?: Map<string, any> }).participants ??
       new Map<string, any>();
 
@@ -234,6 +269,7 @@ export class LiveKitRoom implements MediaRoom {
         id: remote.identity,
         name: remote.name ?? remote.identity,
         isLocal: false,
+        isSpeaking: activeSpeakers.has(remote.identity),
         tracks: this.collectTracks(remote.trackPublications.values()),
       });
     }

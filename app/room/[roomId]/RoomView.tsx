@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { MediaRoom, ChatMessage, RoomState } from '../../../media/core/MediaRoom';
 import type { Participant } from '../../../media/core/Participant';
 import { createMediaProvider } from '../../../media/MediaProvider';
@@ -15,16 +16,19 @@ type RoomViewProps = {
 type Role = 'teacher' | 'student';
 
 export default function RoomView({ roomId }: RoomViewProps) {
+  const router = useRouter();
   const provider = useMemo(() => createMediaProvider(), []);
   const [room, setRoom] = useState<MediaRoom | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [roomState, setRoomState] = useState<RoomState>('disconnected');
-  const [participantName, setParticipantName] = useState('');
-  const [role, setRole] = useState<Role>('student');
+  const [participantName] = useState(() => `Student ${Math.floor(1000 + Math.random() * 9000)}`);
+  const role: Role = 'student';
   const [audioEnabled, setAudioEnabled] = useState(true);
   const [videoEnabled, setVideoEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [autoJoinAttempted, setAutoJoinAttempted] = useState(false);
+  const joinInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!room) {
@@ -44,11 +48,12 @@ export default function RoomView({ roomId }: RoomViewProps) {
   }, [room]);
 
   const joinRoom = useCallback(async () => {
-    if (!participantName.trim()) {
-      setError('Please enter your name to join.');
+    if (joinInFlightRef.current || room) {
       return;
     }
+    joinInFlightRef.current = true;
     setError(null);
+    setAutoJoinAttempted(true);
     const response = await fetch('/api/media/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -76,8 +81,16 @@ export default function RoomView({ roomId }: RoomViewProps) {
     } catch (connectError) {
       setRoom(null);
       setError('Unable to connect to the room. Please try again.');
+    } finally {
+      joinInFlightRef.current = false;
     }
-  }, [participantName, provider, role, roomId]);
+  }, [participantName, provider, role, room, roomId]);
+
+  useEffect(() => {
+    if (!room && !autoJoinAttempted) {
+      joinRoom();
+    }
+  }, [autoJoinAttempted, joinRoom, room]);
 
   const leaveRoom = useCallback(async () => {
     if (!room) {
@@ -87,7 +100,8 @@ export default function RoomView({ roomId }: RoomViewProps) {
     setRoom(null);
     setParticipants([]);
     setMessages([]);
-  }, [room]);
+    router.push('/');
+  }, [room, router]);
 
   const sendMessage = useCallback(
     (message: string) => {
@@ -131,32 +145,12 @@ export default function RoomView({ roomId }: RoomViewProps) {
       <section className="card fade-in" style={{ maxWidth: 520 }}>
         <h1 style={{ marginTop: 0 }}>Room {roomId}</h1>
         <p className="subtitle">
-          Join your class with a name and role. Teachers can open the room first and wait.
+          Joining the live class now. We'll place you in with a friendly name.
         </p>
         <div className="grid">
-          <label>
-            Your name
-            <input
-              className="input"
-              value={participantName}
-              onChange={(event) => setParticipantName(event.target.value)}
-              placeholder="e.g. Anna Kowalski"
-            />
-          </label>
-          <label>
-            Role
-            <select
-              className="input"
-              value={role}
-              onChange={(event) => setRole(event.target.value as Role)}
-            >
-              <option value="teacher">Teacher</option>
-              <option value="student">Student</option>
-            </select>
-          </label>
           {error ? <p style={{ color: 'var(--danger)', margin: 0 }}>{error}</p> : null}
           <button className="button" onClick={joinRoom}>
-            Join room
+            {error ? 'Try again' : 'Connecting...'}
           </button>
         </div>
       </section>

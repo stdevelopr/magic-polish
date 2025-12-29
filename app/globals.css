@@ -115,12 +115,6 @@ textarea {
   color: #3a2c00;
 }
 
-.button.ghost {
-  background: transparent;
-  color: var(--primary);
-  border: 1px solid var(--primary);
-}
-
 .button.danger {
   background: var(--danger);
 }

@@ -1,0 +1,41 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brandMark {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--polish-white) 0%, var(--polish-white) 52%, var(--polish-red) 52%);
+  border: 1px solid var(--border);
+  box-shadow: 0 10px 24px rgba(213, 43, 47, 0.18);
+}
+
+.brandTitle {
+  font-family: var(--font-display), "Segoe UI", sans-serif;
+  font-size: 1.2rem;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.brandSubtitle {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+
+@media (max-width: 720px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

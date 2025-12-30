@@ -30,18 +30,29 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
   const audioPresenceRef = useRef<BiquadFilterNode | null>(null);
   const audioGainRef = useRef<GainNode | null>(null);
   const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const attachedVideoTrackIdRef = useRef<string | null>(null);
   const [volume, setVolume] = useState(250);
   const isPip = variant === 'pip';
 
-  const trackSignature = useMemo(
+  const videoTrackSignature = useMemo(
     () =>
       participant.tracks
-        .map((t) => `${t.kind}:${t.id}:${t.mediaStreamTrack.id}:${t.mediaStreamTrack.readyState}`)
+        .filter((t) => t.kind === 'video')
+        .map((t) => `${t.id}:${t.mediaStreamTrack.id}`)
         .join('|'),
     [participant.tracks]
   );
 
-  const audioStream = useMemo(() => buildStream(participant.tracks, 'audio'), [trackSignature]);
+  const audioTrackSignature = useMemo(
+    () =>
+      participant.tracks
+        .filter((t) => t.kind === 'audio')
+        .map((t) => `${t.id}:${t.mediaStreamTrack.id}:${t.mediaStreamTrack.readyState}`)
+        .join('|'),
+    [participant.tracks]
+  );
+
+  const audioStream = useMemo(() => buildStream(participant.tracks, 'audio'), [audioTrackSignature]);
 
   useEffect(() => {
     const element = videoRef.current;
@@ -54,26 +65,39 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
 
     const livekitVideoTrack = participant.tracks.find((track) => track.kind === 'video' && track.sourceTrack)
       ?.sourceTrack as VideoTrack | undefined;
+    const nextTrackId = livekitVideoTrack?.mediaStreamTrack.id ?? null;
+
+    // Avoid unnecessary detach/attach to prevent flicker when track hasn't actually changed.
+    if (nextTrackId && attachedVideoTrackIdRef.current === nextTrackId) {
+      return;
+    }
 
     if (livekitVideoTrack) {
+      attachedVideoTrackIdRef.current = nextTrackId;
       livekitVideoTrack.detach(element);
       livekitVideoTrack.attach(element);
       element.play().catch(() => undefined);
       return () => {
         livekitVideoTrack.detach(element);
+        attachedVideoTrackIdRef.current = null;
       };
     }
 
     const fallbackStream = buildStream(participant.tracks, 'video');
     element.srcObject = null;
-    element.srcObject = fallbackStream;
-    element.play().catch(() => undefined);
-    return () => {
-      if (element.srcObject === fallbackStream) {
-        element.srcObject = null;
-      }
-    };
-  }, [participant.tracks, participant.isLocal, trackSignature]);
+    if (fallbackStream.getVideoTracks().length) {
+      attachedVideoTrackIdRef.current = fallbackStream.getVideoTracks()[0]?.id ?? null;
+      element.srcObject = fallbackStream;
+      element.play().catch(() => undefined);
+      return () => {
+        if (element.srcObject === fallbackStream) {
+          element.srcObject = null;
+        }
+        attachedVideoTrackIdRef.current = null;
+      };
+    }
+    attachedVideoTrackIdRef.current = null;
+  }, [participant.isLocal, videoTrackSignature]);
 
   useEffect(() => {
     if (!audioRef.current) {
@@ -190,22 +214,6 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
         <div className={styles.participantLabel}>
           {participant.name} {participant.isLocal ? '(You)' : ''}
         </div>
-      ) : null}
-      {!isPip ? (
-        <label style={{ display: 'grid', gap: 6, marginTop: 12 }}>
-          <span style={{ fontSize: 12, opacity: 0.7 }}>
-            Volume {participant.isLocal ? '(Local)' : ''}: {volume}%
-          </span>
-          <input
-            type="range"
-            min={0}
-            max={400}
-            step={1}
-            value={volume}
-            disabled={participant.isLocal}
-            onChange={(event) => setVolume(Number(event.target.value))}
-          />
-        </label>
       ) : null}
     </div>
   );

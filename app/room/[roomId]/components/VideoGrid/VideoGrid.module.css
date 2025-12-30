@@ -11,11 +11,12 @@
 }
 
 .videoTile {
+  --video-tile-aspect: 10 / 16;
   position: relative;
   border-radius: 16px;
   overflow: hidden;
   background: #0b0f1a;
-  aspect-ratio: 10 / 16;
+  aspect-ratio: var(--video-tile-aspect);
   border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   width: 100%;
@@ -57,19 +58,26 @@
 }
 
 .primaryTile {
+  display: flex;
   height: 100%;
   min-height: 0;
   position: relative;
+  overflow: hidden;
+  align-items: stretch;
 }
 
 .primaryTile .videoTile {
+  flex: 1 1 auto;
   height: 100%;
-  aspect-ratio: auto;
-  min-height: 0;
+  width: 100%;
+  max-height: 100%;
+  aspect-ratio: var(--video-tile-aspect);
 }
 
 .primaryTile .videoTile video {
   object-fit: cover;
+  height: 100%;
+  width: 100%;
 }
 
 .secondaryList {
@@ -95,7 +103,7 @@
   }
 
   .videoTile {
-    aspect-ratio: 16 / 9;
+    --video-tile-aspect: 16 / 9;
   }
 
   .videoTilePip {
@@ -105,7 +113,7 @@
 
 @media (max-width: 720px) {
   .videoTile {
-    aspect-ratio: 4 / 5;
+    --video-tile-aspect: 4 / 5;
   }
 
   .videoTilePip {

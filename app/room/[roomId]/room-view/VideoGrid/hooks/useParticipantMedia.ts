@@ -25,7 +25,7 @@ export function useParticipantMedia(participant: Participant) {
       participant.tracks.find(
         (track) => track.kind === "video" && track.sourceTrack
       )?.sourceTrack as VideoTrack | undefined,
-    [participant.tracks, videoTrackSignature]
+    [participant.tracks]
   );
 
   const fallbackVideoStream = useMemo(
@@ -59,7 +59,7 @@ export function useParticipantMedia(participant: Participant) {
 
   const audioStream = useMemo(
     () => buildStream(participant.tracks, "audio"),
-    [audioTrackSignature]
+    [participant.tracks]
   );
 
   useEffect(() => {

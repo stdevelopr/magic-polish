@@ -1,7 +1,7 @@
 import styles from './page.module.css';
-import MagicPolishHeader from './components/MagicPolishHeader';
-import MagicPolishStats from './components/MagicPolishStats';
-import MagicPolishDashboard from './components/MagicPolishDashboard';
+import MagicPolishHeader from './shared-components/MagicPolishHeader/MagicPolishHeader';
+import MagicPolishStats from './shared-components/MagicPolishStats/MagicPolishStats';
+import MagicPolishDashboard from './shared-components/MagicPolishDashboard/MagicPolishDashboard';
 
 export default function HomePage() {
   return (

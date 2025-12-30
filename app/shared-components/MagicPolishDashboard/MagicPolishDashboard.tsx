@@ -1,4 +1,4 @@
-import MagicPolishJoinCard from './MagicPolishJoinCard';
+import MagicPolishJoinCard from '../MagicPolishJoinCard/MagicPolishJoinCard';
 import styles from './MagicPolishDashboard.module.css';
 
 export default function MagicPolishDashboard() {

@@ -12,10 +12,6 @@ type VideoGridProps = {
 };
 
 export default function VideoGrid({ participants }: VideoGridProps) {
-  if (!participants.length) {
-    return <p className="subtitle">No one has joined yet. Stay ready.</p>;
-  }
-
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pipRef = useRef<HTMLDivElement | null>(null);
   const { localParticipant, remoteParticipants, isSingleTile } =
@@ -25,6 +21,10 @@ export default function VideoGrid({ participants }: VideoGridProps) {
     pipRef,
     Boolean(localParticipant && remoteParticipants.length)
   );
+
+  if (!participants.length) {
+    return <p className="subtitle">No one has joined yet. Stay ready.</p>;
+  }
 
   if (localParticipant && remoteParticipants.length) {
     const [primary, ...others] = remoteParticipants;

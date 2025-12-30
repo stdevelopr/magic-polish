@@ -6,6 +6,7 @@ Use this file as the default checklist when adding or refactoring UI components.
 - Create a folder per component: `ComponentName/`.
 - Inside the folder, keep `ComponentName.tsx` and `ComponentName.module.css`.
 - Export the component as the default export from `ComponentName.tsx`.
+- Keep exactly one component per file.
 
 ## Styling
 - Use CSS Modules for component-specific styles.
@@ -22,6 +23,8 @@ Use this file as the default checklist when adding or refactoring UI components.
 - Keep inline styles to small, local tweaks that are not worth a class.
 - Do not rely on global utility classes for components.
 - If a style or UI element is reused, create a shared atom in `app/components/atoms/` with its own CSS module.
+- Keep component bodies focused on rendering; move side effects, data prep, and event wiring into hooks.
+- Extract helper functions into a colocated `.helper.ts` file.
 
 ## Example
 ```

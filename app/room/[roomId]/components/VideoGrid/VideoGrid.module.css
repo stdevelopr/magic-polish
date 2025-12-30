@@ -10,43 +10,6 @@
   align-items: stretch;
 }
 
-.videoTile {
-  --video-tile-aspect: 10 / 16;
-  position: relative;
-  border-radius: 16px;
-  overflow: hidden;
-  background: #0b0f1a;
-  aspect-ratio: var(--video-tile-aspect);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
-  width: 100%;
-}
-
-.videoTilePip {
-  aspect-ratio: 10 / 16;
-  width: clamp(120px, 22vw, 320px);
-  min-height: auto;
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-}
-
-.videoTile video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.participantLabel {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(15, 23, 42, 0.78);
-  color: white;
-  font-size: 0.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
 .splitLayout {
   display: grid;
   grid-template-columns: 1fr;
@@ -64,20 +27,6 @@
   position: relative;
   overflow: hidden;
   align-items: stretch;
-}
-
-.primaryTile .videoTile {
-  flex: 1 1 auto;
-  height: 100%;
-  width: 100%;
-  max-height: 100%;
-  aspect-ratio: var(--video-tile-aspect);
-}
-
-.primaryTile .videoTile video {
-  object-fit: cover;
-  height: 100%;
-  width: 100%;
 }
 
 .secondaryList {
@@ -101,22 +50,7 @@
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 16px;
   }
-
-  .videoTile {
-    --video-tile-aspect: 16 / 9;
-  }
-
-  .videoTilePip {
-    width: clamp(160px, 18vw, 360px);
-  }
 }
 
 @media (max-width: 720px) {
-  .videoTile {
-    --video-tile-aspect: 4 / 5;
-  }
-
-  .videoTilePip {
-    width: clamp(120px, 34vw, 220px);
-  }
 }

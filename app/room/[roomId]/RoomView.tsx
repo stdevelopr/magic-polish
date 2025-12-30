@@ -447,6 +447,24 @@ export default function RoomView({ roomId }: RoomViewProps) {
     },
     [room]
   );
+  
+  useEffect(() => {
+    if (!room) {
+      return;
+    }
+    const unlockAudio = () => {
+      room.startAudio().catch(() => undefined);
+      window.dispatchEvent(new Event("media:resume-audio"));
+    };
+    const events = ["pointerdown", "touchstart", "keydown", "click"];
+    events.forEach((event) => window.addEventListener(event, unlockAudio));
+    const interval = window.setInterval(unlockAudio, 2000);
+    unlockAudio();
+    return () => {
+      events.forEach((event) => window.removeEventListener(event, unlockAudio));
+      window.clearInterval(interval);
+    };
+  }, [room]);
 
   if (!room) {
     return (

@@ -267,6 +267,37 @@ function ParticipantTile({
     };
   }, []);
 
+  useEffect(() => {
+    if (participant.isLocal) {
+      return;
+    }
+    const handler = () => {
+      const element = audioRef.current;
+      if (!element) {
+        return;
+      }
+      if (!element.srcObject && audioStream.getAudioTracks().length) {
+        element.srcObject = audioStream;
+      }
+      if (audioContextRef.current?.state === "suspended") {
+        audioContextRef.current.resume().catch(() => undefined);
+      }
+      element.muted = false;
+      element.play().catch(() => undefined);
+    };
+    window.addEventListener("media:resume-audio", handler);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        handler();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("media:resume-audio", handler);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [audioStream, participant.isLocal]);
+
   return (
     <div
       className={`${styles.videoTile}${isPip ? ` ${styles.videoTilePip}` : ""}`}

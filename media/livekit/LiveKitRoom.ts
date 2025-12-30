@@ -28,14 +28,22 @@ export class LiveKitRoom implements MediaRoom {
     noiseSuppression: true,
     gain: 1,
   };
+  // Prioritize stable voice capture with high-fidelity publish settings.
   private readonly audioCaptureDefaults = {
     channelCount: 1,
     sampleRate: 48000,
     sampleSize: 16,
+    autoGainControl: true,
+    echoCancellation: true,
+    noiseSuppression: true,
+    voiceIsolation: false,
   };
+  // Maximize audio robustness (redundancy) and prevent DTX-induced drops.
   private readonly audioPublishDefaults = {
-    audioPreset: AudioPresets.musicHighQualityStereo,
-    forceStereo: true,
+    audioPreset: AudioPresets.musicHighQuality,
+    forceStereo: false,
+    dtx: false,
+    red: true,
   };
   private gainProcessor = createGainProcessor(this.audioSettings.gain);
   private room = new Room({
@@ -50,16 +58,10 @@ export class LiveKitRoom implements MediaRoom {
       resolution: VideoPresets.h720.resolution,
     },
     audioCaptureDefaults: {
-      channelCount: 1,
-      sampleRate: 48000,
-      sampleSize: 16,
-      autoGainControl: true,
-      echoCancellation: true,
-      noiseSuppression: true,
+      ...this.audioCaptureDefaults,
     },
     publishDefaults: {
-      audioPreset: AudioPresets.musicHighQualityStereo,
-      forceStereo: true,
+      ...this.audioPublishDefaults,
     },
   });
   private participants: Participant[] = [];
@@ -71,6 +73,15 @@ export class LiveKitRoom implements MediaRoom {
   private stateListeners = new Set<(state: RoomState) => void>();
   private eventsBound = false;
   private connectionPrepared = false;
+
+  private getAudioCaptureOptions(settings: LocalAudioSettings) {
+    return {
+      ...this.audioCaptureDefaults,
+      autoGainControl: settings.gain === 1 ? settings.autoGainControl : false,
+      echoCancellation: settings.echoCancellation,
+      noiseSuppression: settings.noiseSuppression,
+    };
+  }
 
   async prepareConnection(options: {
     url: string;
@@ -128,10 +139,7 @@ export class LiveKitRoom implements MediaRoom {
       await this.room.localParticipant.setMicrophoneEnabled(
         true,
         {
-          ...this.audioCaptureDefaults,
-          autoGainControl: this.audioSettings.autoGainControl,
-          echoCancellation: this.audioSettings.echoCancellation,
-          noiseSuppression: this.audioSettings.noiseSuppression,
+          ...this.getAudioCaptureOptions(this.audioSettings),
           ...(this.audioSettings.gain !== 1
             ? { processor: this.gainProcessor }
             : {}),
@@ -184,10 +192,7 @@ export class LiveKitRoom implements MediaRoom {
     await local.setMicrophoneEnabled(
       true,
       {
-        ...this.audioCaptureDefaults,
-        autoGainControl: settings.autoGainControl,
-        echoCancellation: settings.echoCancellation,
-        noiseSuppression: settings.noiseSuppression,
+        ...this.getAudioCaptureOptions(settings),
         ...(settings.gain !== 1 ? { processor: this.gainProcessor } : {}),
       },
       this.audioPublishDefaults

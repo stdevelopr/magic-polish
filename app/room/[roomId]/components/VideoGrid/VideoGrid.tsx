@@ -1,15 +1,18 @@
-'use client';
+"use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { VideoTrack } from 'livekit-client';
-import type { Participant, MediaTrack } from '../../../../../media/core/Participant';
-import styles from './VideoGrid.module.css';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { VideoTrack } from "livekit-client";
+import type {
+  Participant,
+  MediaTrack,
+} from "../../../../../media/core/Participant";
+import styles from "./VideoGrid.module.css";
 
 type VideoGridProps = {
   participants: Participant[];
 };
 
-function buildStream(tracks: MediaTrack[], kind: 'audio' | 'video') {
+function buildStream(tracks: MediaTrack[], kind: "audio" | "video") {
   const stream = new MediaStream();
   tracks
     .filter((track) => track.kind === kind)
@@ -17,9 +20,15 @@ function buildStream(tracks: MediaTrack[], kind: 'audio' | 'video') {
   return stream;
 }
 
-type TileVariant = 'default' | 'pip';
+type TileVariant = "default" | "pip";
 
-function ParticipantTile({ participant, variant = 'default' }: { participant: Participant; variant?: TileVariant }) {
+function ParticipantTile({
+  participant,
+  variant = "default",
+}: {
+  participant: Participant;
+  variant?: TileVariant;
+}) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -29,30 +38,39 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
   const audioHighpassRef = useRef<BiquadFilterNode | null>(null);
   const audioPresenceRef = useRef<BiquadFilterNode | null>(null);
   const audioGainRef = useRef<GainNode | null>(null);
-  const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
+  const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(
+    null
+  );
   const attachedVideoTrackIdRef = useRef<string | null>(null);
+  const attachedVideoTrackRef = useRef<VideoTrack | null>(null);
   const [volume, setVolume] = useState(250);
-  const isPip = variant === 'pip';
+  const isPip = variant === "pip";
 
   const videoTrackSignature = useMemo(
     () =>
       participant.tracks
-        .filter((t) => t.kind === 'video')
+        .filter((t) => t.kind === "video")
         .map((t) => `${t.id}:${t.mediaStreamTrack.id}`)
-        .join('|'),
+        .join("|"),
     [participant.tracks]
   );
 
   const audioTrackSignature = useMemo(
     () =>
       participant.tracks
-        .filter((t) => t.kind === 'audio')
-        .map((t) => `${t.id}:${t.mediaStreamTrack.id}:${t.mediaStreamTrack.readyState}`)
-        .join('|'),
+        .filter((t) => t.kind === "audio")
+        .map(
+          (t) =>
+            `${t.id}:${t.mediaStreamTrack.id}:${t.mediaStreamTrack.readyState}`
+        )
+        .join("|"),
     [participant.tracks]
   );
 
-  const audioStream = useMemo(() => buildStream(participant.tracks, 'audio'), [audioTrackSignature]);
+  const audioStream = useMemo(
+    () => buildStream(participant.tracks, "audio"),
+    [audioTrackSignature]
+  );
 
   useEffect(() => {
     const element = videoRef.current;
@@ -63,16 +81,22 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
     element.muted = participant.isLocal;
     element.playsInline = true;
 
-    const livekitVideoTrack = participant.tracks.find((track) => track.kind === 'video' && track.sourceTrack)
-      ?.sourceTrack as VideoTrack | undefined;
+    const livekitVideoTrack = participant.tracks.find(
+      (track) => track.kind === "video" && track.sourceTrack
+    )?.sourceTrack as VideoTrack | undefined;
     const nextTrackId = livekitVideoTrack?.mediaStreamTrack.id ?? null;
 
     // Avoid unnecessary detach/attach to prevent flicker when track hasn't actually changed.
-    if (nextTrackId && attachedVideoTrackIdRef.current === nextTrackId) {
+    if (
+      livekitVideoTrack &&
+      (attachedVideoTrackRef.current === livekitVideoTrack ||
+        (nextTrackId && attachedVideoTrackIdRef.current === nextTrackId))
+    ) {
       return;
     }
 
     if (livekitVideoTrack) {
+      attachedVideoTrackRef.current = livekitVideoTrack;
       attachedVideoTrackIdRef.current = nextTrackId;
       livekitVideoTrack.detach(element);
       livekitVideoTrack.attach(element);
@@ -80,13 +104,24 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
       return () => {
         livekitVideoTrack.detach(element);
         attachedVideoTrackIdRef.current = null;
+        attachedVideoTrackRef.current = null;
       };
     }
 
-    const fallbackStream = buildStream(participant.tracks, 'video');
+    const fallbackStream = buildStream(participant.tracks, "video");
+    const fallbackTrackId = fallbackStream.getVideoTracks()[0]?.id ?? null;
+    const currentStream =
+      element.srcObject instanceof MediaStream ? element.srcObject : null;
+    const currentTrackId = currentStream?.getVideoTracks()[0]?.id ?? null;
+    if (fallbackTrackId && fallbackTrackId === currentTrackId) {
+      attachedVideoTrackIdRef.current = fallbackTrackId;
+      attachedVideoTrackRef.current = null;
+      return;
+    }
     element.srcObject = null;
-    if (fallbackStream.getVideoTracks().length) {
-      attachedVideoTrackIdRef.current = fallbackStream.getVideoTracks()[0]?.id ?? null;
+    if (fallbackTrackId) {
+      attachedVideoTrackIdRef.current = fallbackTrackId;
+      attachedVideoTrackRef.current = null;
       element.srcObject = fallbackStream;
       element.play().catch(() => undefined);
       return () => {
@@ -94,9 +129,11 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
           element.srcObject = null;
         }
         attachedVideoTrackIdRef.current = null;
+        attachedVideoTrackRef.current = null;
       };
     }
     attachedVideoTrackIdRef.current = null;
+    attachedVideoTrackRef.current = null;
   }, [participant.isLocal, videoTrackSignature]);
 
   useEffect(() => {
@@ -104,21 +141,25 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
       return;
     }
 
+    const cleanupAudioGraph = () => {
+      audioSourceRef.current?.disconnect();
+      audioCompressorRef.current?.disconnect();
+      audioLimiterRef.current?.disconnect();
+      audioHighpassRef.current?.disconnect();
+      audioPresenceRef.current?.disconnect();
+      audioGainRef.current?.disconnect();
+      audioDestinationRef.current?.disconnect();
+      audioSourceRef.current = null;
+      audioCompressorRef.current = null;
+      audioLimiterRef.current = null;
+      audioHighpassRef.current = null;
+      audioPresenceRef.current = null;
+      audioGainRef.current = null;
+      audioDestinationRef.current = null;
+    };
+
     // Clean up any previous audio graph
-    audioSourceRef.current?.disconnect();
-    audioCompressorRef.current?.disconnect();
-    audioLimiterRef.current?.disconnect();
-    audioHighpassRef.current?.disconnect();
-    audioPresenceRef.current?.disconnect();
-    audioGainRef.current?.disconnect();
-    audioDestinationRef.current?.disconnect();
-    audioSourceRef.current = null;
-    audioCompressorRef.current = null;
-    audioLimiterRef.current = null;
-    audioHighpassRef.current = null;
-    audioPresenceRef.current = null;
-    audioGainRef.current = null;
-    audioDestinationRef.current = null;
+    cleanupAudioGraph();
 
     if (!audioStream.getAudioTracks().length) {
       audioRef.current.srcObject = null;
@@ -132,19 +173,33 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
       return;
     }
 
+    const attachDirectStream = () => {
+      if (!audioRef.current) {
+        return;
+      }
+      audioRef.current.srcObject = audioStream;
+      audioRef.current.muted = false;
+      audioRef.current.volume = Math.min(1, Math.max(0, volume / 100));
+      audioRef.current.play().catch(() => undefined);
+    };
+
     const context = audioContextRef.current ?? new AudioContext();
     audioContextRef.current = context;
-    if (context.state === 'suspended') {
+    if (context.state === "suspended") {
       context.resume().catch(() => undefined);
+    }
+    if (context.state === "suspended") {
+      attachDirectStream();
+      return;
     }
 
     const source = context.createMediaStreamSource(audioStream);
     const highpass = context.createBiquadFilter();
-    highpass.type = 'highpass';
+    highpass.type = "highpass";
     highpass.frequency.value = 80;
 
     const presence = context.createBiquadFilter();
-    presence.type = 'peaking';
+    presence.type = "peaking";
     presence.frequency.value = 3200;
     presence.Q.value = 1;
     presence.gain.value = 2.5;
@@ -173,7 +228,10 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
     gainNode.connect(destination);
     audioRef.current.srcObject = destination.stream;
     audioRef.current.muted = false;
-    audioRef.current.play().catch(() => undefined);
+    audioRef.current.play().catch(() => {
+      cleanupAudioGraph();
+      attachDirectStream();
+    });
 
     audioSourceRef.current = source;
     audioCompressorRef.current = compressor;
@@ -189,7 +247,10 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
       return;
     }
     if (audioGainRef.current) {
-      audioGainRef.current.gain.value = Math.min(3.5, Math.max(0, volume / 100));
+      audioGainRef.current.gain.value = Math.min(
+        3.5,
+        Math.max(0, volume / 100)
+      );
     }
   }, [volume, participant.isLocal]);
 
@@ -207,12 +268,14 @@ function ParticipantTile({ participant, variant = 'default' }: { participant: Pa
   }, []);
 
   return (
-    <div className={`${styles.videoTile}${isPip ? ` ${styles.videoTilePip}` : ''}`}>
+    <div
+      className={`${styles.videoTile}${isPip ? ` ${styles.videoTilePip}` : ""}`}
+    >
       <video ref={videoRef} autoPlay playsInline muted={participant.isLocal} />
       <audio ref={audioRef} autoPlay />
       {!isPip ? (
         <div className={styles.participantLabel}>
-          {participant.name} {participant.isLocal ? '(You)' : ''}
+          {participant.name} {participant.isLocal ? "(You)" : ""}
         </div>
       ) : null}
     </div>
@@ -226,7 +289,11 @@ export default function VideoGrid({ participants }: VideoGridProps) {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pipRef = useRef<HTMLDivElement | null>(null);
-  const [pipPosition, setPipPosition] = useState<{ x: number; y: number } | null>(null);
+  const [pipPosition, setPipPosition] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const isSingleTile = participants.length === 1;
 
   const localParticipant = participants.find((p) => p.isLocal);
   const remoteParticipants = participants.filter((p) => !p.isLocal);
@@ -240,7 +307,7 @@ export default function VideoGrid({ participants }: VideoGridProps) {
     const pipHeight = pipRef.current.clientHeight;
     setPipPosition({
       x: Math.max(8, clientWidth - pipWidth - 14),
-      y: Math.max(8, clientHeight - pipHeight - 14)
+      y: Math.max(8, clientHeight - pipHeight - 14),
     });
   }, [pipPosition]);
 
@@ -256,27 +323,36 @@ export default function VideoGrid({ participants }: VideoGridProps) {
     const onMove = (e: PointerEvent) => {
       const deltaX = e.clientX - startX;
       const deltaY = e.clientY - startY;
-      const nextX = Math.min(Math.max(0, startPos.x + deltaX), bounds.width - pipBounds.width);
-      const nextY = Math.min(Math.max(0, startPos.y + deltaY), bounds.height - pipBounds.height);
+      const nextX = Math.min(
+        Math.max(0, startPos.x + deltaX),
+        bounds.width - pipBounds.width
+      );
+      const nextY = Math.min(
+        Math.max(0, startPos.y + deltaY),
+        bounds.height - pipBounds.height
+      );
       setPipPosition({ x: nextX, y: nextY });
     };
 
     const onUp = (e: PointerEvent) => {
       pipRef.current?.releasePointerCapture(event.pointerId);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   };
 
   if (localParticipant && remoteParticipants.length) {
     const [primary, ...others] = remoteParticipants;
     return (
-      <div ref={containerRef} className={`${styles.videoGrid} ${styles.splitLayout}`}>
+      <div
+        ref={containerRef}
+        className={`${styles.videoGrid} ${styles.splitLayout}`}
+      >
         <div className={styles.primaryTile}>
           <ParticipantTile participant={primary} />
         </div>
@@ -290,7 +366,13 @@ export default function VideoGrid({ participants }: VideoGridProps) {
         <div
           ref={pipRef}
           className={styles.pipTile}
-          style={pipPosition ? { transform: `translate(${pipPosition.x}px, ${pipPosition.y}px)` } : undefined}
+          style={
+            pipPosition
+              ? {
+                  transform: `translate(${pipPosition.x}px, ${pipPosition.y}px)`,
+                }
+              : undefined
+          }
           onPointerDown={beginDrag}
         >
           <ParticipantTile participant={localParticipant} variant="pip" />
@@ -300,7 +382,12 @@ export default function VideoGrid({ participants }: VideoGridProps) {
   }
 
   return (
-    <div ref={containerRef} className={styles.videoGrid}>
+    <div
+      ref={containerRef}
+      className={`${styles.videoGrid}${
+        isSingleTile ? ` ${styles.singleTile}` : ""
+      }`}
+    >
       {participants.map((participant) => (
         <ParticipantTile key={participant.id} participant={participant} />
       ))}

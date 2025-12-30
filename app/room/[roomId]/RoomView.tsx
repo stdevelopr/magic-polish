@@ -313,8 +313,9 @@ export default function RoomView({ roomId }: RoomViewProps) {
       }
 
       const nextRoom = provider.createRoom();
-      setRoom(nextRoom);
+      await nextRoom.startAudio().catch(() => undefined);
       await nextRoom.connect({ url, token });
+      setRoom(nextRoom);
       setAudioEnabled(true);
       setVideoEnabled(true);
       stopPreviewTracks();

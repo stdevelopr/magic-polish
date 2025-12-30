@@ -65,6 +65,10 @@ export class LiveKitRoom implements MediaRoom {
     this.setState("connected");
   }
 
+  async startAudio(): Promise<void> {
+    await this.room.startAudio();
+  }
+
   async disconnect(): Promise<void> {
     this.room.disconnect();
     this.refreshParticipants();

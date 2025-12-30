@@ -8,6 +8,8 @@ export function useParticipantMedia(participant: Participant) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const attachedVideoTrackIdRef = useRef<string | null>(null);
   const attachedVideoTrackRef = useRef<VideoTrack | null>(null);
+  const fallbackVideoStreamRef = useRef<MediaStream | null>(null);
+  const fallbackVideoSignatureRef = useRef<string>("");
 
   const videoTrackSignature = useMemo(
     () =>
@@ -16,6 +18,31 @@ export function useParticipantMedia(participant: Participant) {
         .map((t) => `${t.id}:${t.mediaStreamTrack.id}`)
         .join("|"),
     [participant.tracks]
+  );
+
+  const livekitVideoTrack = useMemo(
+    () =>
+      participant.tracks.find(
+        (track) => track.kind === "video" && track.sourceTrack
+      )?.sourceTrack as VideoTrack | undefined,
+    [participant.tracks, videoTrackSignature]
+  );
+
+  const fallbackVideoStream = useMemo(
+    () => {
+      if (
+        !fallbackVideoStreamRef.current ||
+        fallbackVideoSignatureRef.current !== videoTrackSignature
+      ) {
+        fallbackVideoSignatureRef.current = videoTrackSignature;
+        fallbackVideoStreamRef.current = buildStream(
+          participant.tracks,
+          "video"
+        );
+      }
+      return fallbackVideoStreamRef.current;
+    },
+    [participant.tracks, videoTrackSignature]
   );
 
   const audioTrackSignature = useMemo(
@@ -57,9 +84,6 @@ export function useParticipantMedia(participant: Participant) {
       return currentStream?.getVideoTracks()[0]?.id ?? null;
     };
 
-    const livekitVideoTrack = participant.tracks.find(
-      (track) => track.kind === "video" && track.sourceTrack
-    )?.sourceTrack as VideoTrack | undefined;
     const nextTrackId = livekitVideoTrack?.mediaStreamTrack.id ?? null;
 
     // Prefer the LiveKit source track when available; avoid reattaching the same track to prevent flicker.
@@ -83,8 +107,7 @@ export function useParticipantMedia(participant: Participant) {
     }
 
     // Fall back to a synthetic MediaStream when the source track isn't present.
-    const fallbackStream = buildStream(participant.tracks, "video");
-    const fallbackTrackId = fallbackStream.getVideoTracks()[0]?.id ?? null;
+    const fallbackTrackId = fallbackVideoStream.getVideoTracks()[0]?.id ?? null;
     const currentTrackId = getCurrentTrackId();
     if (fallbackTrackId && fallbackTrackId === currentTrackId) {
       // Keep the current stream if it's already the expected fallback track.
@@ -95,17 +118,22 @@ export function useParticipantMedia(participant: Participant) {
     element.srcObject = null;
     if (fallbackTrackId) {
       setAttachedState(fallbackTrackId, null);
-      element.srcObject = fallbackStream;
+      element.srcObject = fallbackVideoStream;
       element.play().catch(() => undefined);
       return () => {
-        if (element.srcObject === fallbackStream) {
+        if (element.srcObject === fallbackVideoStream) {
           element.srcObject = null;
         }
         setAttachedState(null, null);
       };
     }
     setAttachedState(null, null);
-  }, [participant.isLocal, participant.tracks, videoTrackSignature]);
+  }, [
+    participant.isLocal,
+    livekitVideoTrack,
+    fallbackVideoStream,
+    videoTrackSignature,
+  ]);
 
   useEffect(() => {
     if (!audioRef.current) {

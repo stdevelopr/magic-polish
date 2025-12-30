@@ -6,6 +6,7 @@ import {
   type LocalTrackPublication,
   ConnectionState,
   VideoPresets,
+  AudioPresets,
   type AudioTrack,
   type VideoTrack,
 } from "livekit-client";
@@ -27,6 +28,15 @@ export class LiveKitRoom implements MediaRoom {
     noiseSuppression: true,
     gain: 1,
   };
+  private readonly audioCaptureDefaults = {
+    channelCount: 1,
+    sampleRate: 48000,
+    sampleSize: 16,
+  };
+  private readonly audioPublishDefaults = {
+    audioPreset: AudioPresets.musicHighQualityStereo,
+    forceStereo: true,
+  };
   private gainProcessor = createGainProcessor(this.audioSettings.gain);
   private room = new Room({
     // automatically manage subscribed video quality
@@ -40,9 +50,16 @@ export class LiveKitRoom implements MediaRoom {
       resolution: VideoPresets.h720.resolution,
     },
     audioCaptureDefaults: {
+      channelCount: 1,
+      sampleRate: 48000,
+      sampleSize: 16,
       autoGainControl: true,
       echoCancellation: true,
       noiseSuppression: true,
+    },
+    publishDefaults: {
+      audioPreset: AudioPresets.musicHighQualityStereo,
+      forceStereo: true,
     },
   });
   private participants: Participant[] = [];
@@ -96,14 +113,19 @@ export class LiveKitRoom implements MediaRoom {
 
   async setLocalAudioEnabled(enabled: boolean): Promise<void> {
     if (enabled) {
-      await this.room.localParticipant.setMicrophoneEnabled(true, {
-        autoGainControl: this.audioSettings.autoGainControl,
-        echoCancellation: this.audioSettings.echoCancellation,
-        noiseSuppression: this.audioSettings.noiseSuppression,
-        ...(this.audioSettings.gain !== 1
-          ? { processor: this.gainProcessor }
-          : {}),
-      });
+      await this.room.localParticipant.setMicrophoneEnabled(
+        true,
+        {
+          ...this.audioCaptureDefaults,
+          autoGainControl: this.audioSettings.autoGainControl,
+          echoCancellation: this.audioSettings.echoCancellation,
+          noiseSuppression: this.audioSettings.noiseSuppression,
+          ...(this.audioSettings.gain !== 1
+            ? { processor: this.gainProcessor }
+            : {}),
+        },
+        this.audioPublishDefaults
+      );
     } else {
       await this.room.localParticipant.setMicrophoneEnabled(false);
     }
@@ -147,12 +169,17 @@ export class LiveKitRoom implements MediaRoom {
     }
 
     await local.setMicrophoneEnabled(false);
-    await local.setMicrophoneEnabled(true, {
-      autoGainControl: settings.autoGainControl,
-      echoCancellation: settings.echoCancellation,
-      noiseSuppression: settings.noiseSuppression,
-      ...(settings.gain !== 1 ? { processor: this.gainProcessor } : {}),
-    });
+    await local.setMicrophoneEnabled(
+      true,
+      {
+        ...this.audioCaptureDefaults,
+        autoGainControl: settings.autoGainControl,
+        echoCancellation: settings.echoCancellation,
+        noiseSuppression: settings.noiseSuppression,
+        ...(settings.gain !== 1 ? { processor: this.gainProcessor } : {}),
+      },
+      this.audioPublishDefaults
+    );
     this.refreshParticipants();
   }
 

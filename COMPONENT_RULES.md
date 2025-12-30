@@ -11,6 +11,7 @@ Use this file as the default checklist when adding or refactoring UI components.
 - Page-scoped UI lives under a page folder (e.g. `components/home/ComponentName/`) and each component has its own folder with `ComponentName/ComponentName.tsx` and `ComponentName.module.css`.
 - Shared UI (used across routes) lives in `app/components/atoms`, `app/components/molecules`, or `app/components/organisms`.
 - Colocate helpers and types as `folder-name.helper.ts` and `folder-name.types.ts`.
+- Colocate page-level hooks in the same folder as the component using `useSomething.hook.ts` (no `hooks/` folder) when they are called directly by the page component.
 - Keep one component per `.component.tsx`.
 
 ## Styling

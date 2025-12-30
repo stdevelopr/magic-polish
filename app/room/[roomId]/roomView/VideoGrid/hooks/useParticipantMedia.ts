@@ -1,66 +1,67 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import type { VideoTrack } from "livekit-client";
 import type { Participant } from "../../../../../../media/core/Participant";
 import { buildStream } from "./useParticipantMedia.helper";
 
-export function useParticipantMedia(participant: Participant) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const attachedVideoTrackIdRef = useRef<string | null>(null);
-  const attachedVideoTrackRef = useRef<VideoTrack | null>(null);
-  const fallbackVideoStreamRef = useRef<MediaStream | null>(null);
-  const fallbackVideoSignatureRef = useRef<string>("");
+function getTrackSignature(participant: Participant, kind: "audio" | "video") {
+  return participant.tracks
+    .filter((track) => track.kind === kind)
+    .map((track) =>
+      kind === "audio"
+        ? `${track.id}:${track.mediaStreamTrack.id}:${track.mediaStreamTrack.readyState}`
+        : `${track.id}:${track.mediaStreamTrack.id}`
+    )
+    .join("|");
+}
 
-  const videoTrackSignature = useMemo(
-    () =>
-      participant.tracks
-        .filter((t) => t.kind === "video")
-        .map((t) => `${t.id}:${t.mediaStreamTrack.id}`)
-        .join("|"),
-    [participant.tracks]
-  );
-
-  const livekitVideoTrack = useMemo(
+function useLivekitVideoTrack(participant: Participant) {
+  return useMemo(
     () =>
       participant.tracks.find(
         (track) => track.kind === "video" && track.sourceTrack
       )?.sourceTrack as VideoTrack | undefined,
     [participant.tracks]
   );
+}
 
-  const fallbackVideoStream = useMemo(
-    () => {
-      if (
-        !fallbackVideoStreamRef.current ||
-        fallbackVideoSignatureRef.current !== videoTrackSignature
-      ) {
-        fallbackVideoSignatureRef.current = videoTrackSignature;
-        fallbackVideoStreamRef.current = buildStream(
-          participant.tracks,
-          "video"
-        );
-      }
-      return fallbackVideoStreamRef.current;
-    },
-    [participant.tracks, videoTrackSignature]
-  );
+function useFallbackVideoStream(participant: Participant, signature: string) {
+  const fallbackVideoStreamRef = useRef<MediaStream | null>(null);
+  const fallbackVideoSignatureRef = useRef<string>("");
 
-  const audioTrackSignature = useMemo(
-    () =>
-      participant.tracks
-        .filter((t) => t.kind === "audio")
-        .map(
-          (t) =>
-            `${t.id}:${t.mediaStreamTrack.id}:${t.mediaStreamTrack.readyState}`
-        )
-        .join("|"),
-    [participant.tracks]
-  );
+  return useMemo(() => {
+    if (
+      !fallbackVideoStreamRef.current ||
+      fallbackVideoSignatureRef.current !== signature
+    ) {
+      fallbackVideoSignatureRef.current = signature;
+      fallbackVideoStreamRef.current = buildStream(participant.tracks, "video");
+    }
+    return fallbackVideoStreamRef.current;
+  }, [participant.tracks, signature]);
+}
 
-  const audioStream = useMemo(
+function useAudioStream(participant: Participant) {
+  return useMemo(
     () => buildStream(participant.tracks, "audio"),
     [participant.tracks]
   );
+}
+
+function useVideoAttachment({
+  participant,
+  livekitVideoTrack,
+  fallbackVideoStream,
+  videoRef,
+  videoTrackSignature,
+}: {
+  participant: Participant;
+  livekitVideoTrack: VideoTrack | undefined;
+  fallbackVideoStream: MediaStream;
+  videoRef: RefObject<HTMLVideoElement>;
+  videoTrackSignature: string;
+}) {
+  const attachedVideoTrackIdRef = useRef<string | null>(null);
+  const attachedVideoTrackRef = useRef<VideoTrack | null>(null);
 
   useEffect(() => {
     const element = videoRef.current;
@@ -133,8 +134,19 @@ export function useParticipantMedia(participant: Participant) {
     livekitVideoTrack,
     fallbackVideoStream,
     videoTrackSignature,
+    videoRef,
   ]);
+}
 
+function useAudioAttachment({
+  participant,
+  audioStream,
+  audioRef,
+}: {
+  participant: Participant;
+  audioStream: MediaStream;
+  audioRef: RefObject<HTMLAudioElement>;
+}) {
   useEffect(() => {
     if (!audioRef.current) {
       return;
@@ -156,8 +168,18 @@ export function useParticipantMedia(participant: Participant) {
     audioRef.current.muted = false;
     audioRef.current.volume = 1;
     audioRef.current.play().catch(() => undefined);
-  }, [audioStream, participant.isLocal]);
+  }, [audioRef, audioStream, participant.isLocal]);
+}
 
+function useAudioResume({
+  participant,
+  audioStream,
+  audioRef,
+}: {
+  participant: Participant;
+  audioStream: MediaStream;
+  audioRef: RefObject<HTMLAudioElement>;
+}) {
   useEffect(() => {
     if (participant.isLocal) {
       return;
@@ -185,7 +207,32 @@ export function useParticipantMedia(participant: Participant) {
       window.removeEventListener("media:resume-audio", handler);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [audioStream, participant.isLocal]);
+  }, [audioRef, audioStream, participant.isLocal]);
+}
+
+export function useParticipantMedia(participant: Participant) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoTrackSignature = useMemo(
+    () => getTrackSignature(participant, "video"),
+    [participant.tracks]
+  );
+  const livekitVideoTrack = useLivekitVideoTrack(participant);
+  const fallbackVideoStream = useFallbackVideoStream(
+    participant,
+    videoTrackSignature
+  );
+  const audioStream = useAudioStream(participant);
+
+  useVideoAttachment({
+    participant,
+    livekitVideoTrack,
+    fallbackVideoStream,
+    videoRef,
+    videoTrackSignature,
+  });
+  useAudioAttachment({ participant, audioStream, audioRef });
+  useAudioResume({ participant, audioStream, audioRef });
 
   return { videoRef, audioRef };
 }

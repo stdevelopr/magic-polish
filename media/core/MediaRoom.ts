@@ -18,6 +18,7 @@ export interface ChatMessage {
 }
 
 export interface MediaRoom {
+  prepareConnection(options: { url: string; token: string }): Promise<void>;
   connect(options: { url: string; token: string }): Promise<void>;
   startAudio(): Promise<void>;
   disconnect(): Promise<void>;

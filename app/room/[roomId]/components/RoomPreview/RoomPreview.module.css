@@ -1,0 +1,184 @@
+.previewCard {
+  max-width: 720px;
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(10, 15, 28, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.3);
+  display: grid;
+  gap: 16px;
+  animation: previewFadeIn 240ms ease;
+}
+
+@keyframes previewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.previewTitle {
+  margin: 0 0 6px;
+  color: #f8fafc;
+  font-size: 1.4rem;
+}
+
+.previewSubtitle {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.8);
+}
+
+.previewTile {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 12px;
+}
+
+.previewMediaFrame {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.previewVideo {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #0f1115;
+  display: block;
+}
+
+.previewStatusBadge {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 12px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #f59e0b;
+}
+
+.statusDotReady {
+  background: #4ade80;
+}
+
+.micSection {
+  display: grid;
+  gap: 10px;
+}
+
+.micLabel {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.meter {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.meterFill {
+  height: 100%;
+  width: 0%;
+  transition: width 80ms ease-out;
+}
+
+.gainControl {
+  display: grid;
+  gap: 6px;
+}
+
+.gainLabel {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.75);
+}
+
+.gainSlider {
+  width: 100%;
+}
+
+.errorText {
+  margin: 0;
+  color: var(--danger, #f87171);
+}
+
+.buttonRow {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.primaryButton,
+.ghostButton {
+  border-radius: 12px;
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.primaryButton {
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  box-shadow: 0 14px 26px rgba(37, 99, 235, 0.25);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 32px rgba(37, 99, 235, 0.35);
+}
+
+.ghostButton {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #e2e8f0;
+}
+
+.ghostButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.25);
+}
+
+.primaryButton:disabled,
+.ghostButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+@media (max-width: 720px) {
+  .previewCard {
+    padding: 16px;
+  }
+
+  .previewTitle {
+    font-size: 1.2rem;
+  }
+}

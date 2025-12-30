@@ -1,0 +1,192 @@
+.topBar {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  background: linear-gradient(120deg, rgba(15, 23, 42, 0.82), rgba(12, 18, 33, 0.92));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
+}
+
+.headerLeft {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.roomMeta {
+  display: grid;
+  gap: 2px;
+}
+
+.roomEyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+}
+
+.roomTitle {
+  font-size: 1.15rem;
+  margin: 0;
+  color: #f8fafc;
+}
+
+.roomSubtitle {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.9rem;
+}
+
+.liveBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-weight: 700;
+  color: #f8fafc;
+  width: fit-content;
+}
+
+.liveBadgeOn {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.16), rgba(16, 185, 129, 0.16));
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+.liveBadgeIdle {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.26);
+}
+
+.liveDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.14);
+}
+
+.liveDotOn {
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.2);
+}
+
+.headerRight {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.statPill {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 120px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.statValue {
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.headerCompact {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: #f8fafc;
+}
+
+.compactDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.14);
+}
+
+.compactDotOn {
+  background: #22c55e;
+  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.2);
+}
+
+.compactStatus {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.compactDivider {
+  opacity: 0.5;
+}
+
+.compactTheme {
+  color: rgba(226, 232, 240, 0.9);
+  font-weight: 600;
+}
+
+@media (min-width: 961px) {
+  .topBar {
+    grid-template-columns: 1fr auto;
+    padding: 14px 16px;
+    align-items: flex-end;
+  }
+
+  .headerRight {
+    justify-content: flex-end;
+  }
+
+  .liveBadge {
+    width: fit-content;
+  }
+
+  .roomTitle {
+    font-size: 1.4rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .topBar {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+
+  .headerLeft {
+    display: none;
+  }
+
+  .liveBadge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .roomTitle {
+    font-size: 1.05rem;
+  }
+
+  .roomSubtitle {
+    display: none;
+  }
+
+  .headerRight {
+    display: none;
+  }
+
+  .headerCompact {
+    display: inline-flex;
+  }
+}

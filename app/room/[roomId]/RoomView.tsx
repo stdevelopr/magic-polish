@@ -10,17 +10,12 @@ import type {
 } from "../../../media/core/MediaRoom";
 import type { Participant } from "../../../media/core/Participant";
 import { createMediaProvider } from "../../../media/MediaProvider";
+import ActionBar from "./components/ActionBar/ActionBar";
+import RoomHeader from "./components/RoomHeader/RoomHeader";
+import RoomPreview from "./components/RoomPreview/RoomPreview";
 import VideoGrid from "./components/VideoGrid/VideoGrid";
 import SettingsSheet from "./components/SettingsSheet/SettingsSheet";
 import styles from "./RoomView.module.css";
-import {
-  Mic,
-  MicOff,
-  PhoneOff,
-  Video,
-  VideoOff,
-  MoreVertical,
-} from "lucide-react";
 import {
   createLocalTracks,
   Track,
@@ -33,134 +28,6 @@ type RoomViewProps = {
 };
 
 type Role = "teacher" | "student";
-
-function RoomHeader({
-  roomId,
-  roomState,
-  participantCount,
-}: {
-  roomId: string;
-  roomState: RoomState;
-  participantCount: number;
-}) {
-  const isLive = roomState === "connected";
-  const lessonTheme = "Interactive class";
-
-  return (
-    <div className={styles.topBar}>
-      <div className={styles.headerLeft}>
-        <div
-          className={`${styles.liveBadge} ${
-            isLive ? styles.liveBadgeOn : styles.liveBadgeIdle
-          }`}
-        >
-          <span
-            className={`${styles.liveDot} ${isLive ? styles.liveDotOn : ""}`}
-          />
-          <span>{isLive ? "On air" : "Connecting"}</span>
-        </div>
-        <div className={styles.roomMeta}>
-          <p className={styles.roomEyebrow}>Room {roomId}</p>
-          <h2 className={styles.roomTitle}>{lessonTheme}</h2>
-          <p className={styles.roomSubtitle}>
-            Stay present and keep your mic ready.
-          </p>
-        </div>
-      </div>
-
-      <div className={styles.headerRight}>
-        <div className={styles.statPill}>
-          <span className={styles.statLabel}>In room</span>
-          <span className={styles.statValue}>{participantCount}</span>
-        </div>
-        <div className={styles.statPill}>
-          <span className={styles.statLabel}>Status</span>
-          <span className={styles.statValue}>
-            {isLive ? "Connected" : "Joining…"}
-          </span>
-        </div>
-      </div>
-
-      <div className={styles.headerCompact}>
-        <span
-          className={`${styles.compactDot} ${
-            isLive ? styles.compactDotOn : ""
-          }`}
-        />
-        <span className={styles.compactStatus}>
-          {isLive ? "Connected" : "Connecting"}
-        </span>
-        <span className={styles.compactDivider}>•</span>
-        <span className={styles.compactTheme}>{lessonTheme}</span>
-      </div>
-    </div>
-  );
-}
-
-function ActionBar({
-  audioEnabled,
-  videoEnabled,
-  onToggleAudio,
-  onToggleVideo,
-  onLeave,
-  onOpenSettings,
-}: {
-  audioEnabled: boolean;
-  videoEnabled: boolean;
-  onToggleAudio: () => void;
-  onToggleVideo: () => void;
-  onLeave: () => void;
-  onOpenSettings: () => void;
-}) {
-  return (
-    <div className={styles.actionBar}>
-      <button
-        className={`${styles.quickButton}${
-          !audioEnabled ? ` ${styles.quickButtonMuted}` : ""
-        }`}
-        type="button"
-        onClick={onToggleAudio}
-        aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
-      >
-        {audioEnabled ? (
-          <Mic className={styles.quickIcon} strokeWidth={2.4} />
-        ) : (
-          <MicOff className={styles.quickIcon} strokeWidth={2.4} />
-        )}
-      </button>
-      <button
-        className={`${styles.quickButton}${
-          !videoEnabled ? ` ${styles.quickButtonMuted}` : ""
-        }`}
-        type="button"
-        onClick={onToggleVideo}
-        aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}
-      >
-        {videoEnabled ? (
-          <Video className={styles.quickIcon} strokeWidth={2.4} />
-        ) : (
-          <VideoOff className={styles.quickIcon} strokeWidth={2.4} />
-        )}
-      </button>
-      <button
-        className={`${styles.quickButton} ${styles.quickButtonLeave}`}
-        type="button"
-        onClick={onLeave}
-        aria-label="Leave call"
-      >
-        <PhoneOff className={styles.quickIcon} strokeWidth={2.6} />
-      </button>
-      <button
-        className={`${styles.quickButton} ${styles.quickButtonMuted}`}
-        type="button"
-        onClick={onOpenSettings}
-        aria-label="Open settings"
-      >
-        <MoreVertical className={styles.quickIcon} strokeWidth={2.2} />
-      </button>
-    </div>
-  );
-}
 
 export default function RoomView({ roomId }: RoomViewProps) {
   const router = useRouter();
@@ -202,6 +69,9 @@ export default function RoomView({ roomId }: RoomViewProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const joinInFlightRef = useRef(false);
+  const preparedRoomRef = useRef<MediaRoom | null>(null);
+  const tokenRef = useRef<string | null>(null);
+  const prewarmInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!room) {
@@ -219,6 +89,34 @@ export default function RoomView({ roomId }: RoomViewProps) {
       stopState();
     };
   }, [room]);
+
+  const getConnectionToken = useCallback(async () => {
+    if (tokenRef.current) {
+      return tokenRef.current;
+    }
+    const response = await fetch("/api/media/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId, participantName, role }),
+    });
+
+    if (!response.ok) {
+      const { error: apiError, missing } = (await response
+        .json()
+        .catch(() => ({}))) as {
+        error?: string;
+        missing?: string[];
+      };
+      const detail = apiError
+        ? ` (${apiError}${missing?.length ? `: ${missing.join(", ")}` : ""})`
+        : "";
+      throw new Error(`Token request failed${detail}`);
+    }
+
+    const { token } = (await response.json()) as { token: string };
+    tokenRef.current = token;
+    return token;
+  }, [participantName, role, roomId]);
 
   const stopPreviewTracks = useCallback(() => {
     setPreviewTracks((current) => {
@@ -265,6 +163,31 @@ export default function RoomView({ roomId }: RoomViewProps) {
   }, []);
 
   useEffect(() => {
+    const prewarmConnection = async () => {
+      if (prewarmInFlightRef.current) {
+        return;
+      }
+      const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
+      if (!url) {
+        return;
+      }
+      prewarmInFlightRef.current = true;
+      try {
+        const token = await getConnectionToken();
+        const prewarmRoom = preparedRoomRef.current ?? provider.createRoom();
+        preparedRoomRef.current = prewarmRoom;
+        await prewarmRoom.prepareConnection({ url, token });
+      } catch {
+        // Ignore pre-warm errors; joining handles user-facing failures.
+      } finally {
+        prewarmInFlightRef.current = false;
+      }
+    };
+
+    prewarmConnection().catch(() => undefined);
+  }, [getConnectionToken, provider]);
+
+  useEffect(() => {
     startPreview();
     return () => {
       stopPreviewTracks();
@@ -287,32 +210,15 @@ export default function RoomView({ roomId }: RoomViewProps) {
     setJoinInFlight(true);
     try {
       setError(null);
-      const response = await fetch("/api/media/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, participantName, role }),
-      });
-
-      if (!response.ok) {
-        const { error: apiError, missing } = (await response
-          .json()
-          .catch(() => ({}))) as {
-          error?: string;
-          missing?: string[];
-        };
-        const detail = apiError
-          ? ` (${apiError}${missing?.length ? `: ${missing.join(", ")}` : ""})`
-          : "";
-        throw new Error(`Token request failed${detail}`);
-      }
-
-      const { token } = (await response.json()) as { token: string };
       const url = process.env.NEXT_PUBLIC_LIVEKIT_URL;
       if (!url) {
         throw new Error("Missing LiveKit URL (NEXT_PUBLIC_LIVEKIT_URL).");
       }
 
-      const nextRoom = provider.createRoom();
+      const token = await getConnectionToken();
+      const nextRoom = preparedRoomRef.current ?? provider.createRoom();
+      preparedRoomRef.current = null;
+      await nextRoom.prepareConnection({ url, token });
       await nextRoom.startAudio().catch(() => undefined);
       await nextRoom.connect({ url, token });
       setRoom(nextRoom);
@@ -328,7 +234,7 @@ export default function RoomView({ roomId }: RoomViewProps) {
       joinInFlightRef.current = false;
       setJoinInFlight(false);
     }
-  }, [participantName, provider, role, room, roomId, stopPreviewTracks]);
+  }, [getConnectionToken, provider, room, stopPreviewTracks]);
 
   useEffect(() => {
     // Wire up a lightweight audio level meter for the preview mic track.
@@ -447,7 +353,11 @@ export default function RoomView({ roomId }: RoomViewProps) {
     },
     [room]
   );
-  
+
+  const handlePreviewGainChange = useCallback((gain: number) => {
+    setAudioSettings((current) => ({ ...current, gain }));
+  }, []);
+
   useEffect(() => {
     if (!room) {
       return;
@@ -468,144 +378,19 @@ export default function RoomView({ roomId }: RoomViewProps) {
 
   if (!room) {
     return (
-      <section className="card fade-in" style={{ maxWidth: 720 }}>
-        <h1 style={{ marginTop: 0 }}>Room {roomId}</h1>
-        <p className="subtitle">
-          Preview your camera and mic before joining the class.
-        </p>
-
-        <div style={{ display: "grid", gap: 16 }}>
-          <div
-            style={{
-              background: "var(--muted)",
-              border: "1px solid var(--border)",
-              borderRadius: 14,
-              padding: 12,
-            }}
-          >
-            <div
-              style={{
-                position: "relative",
-                borderRadius: 10,
-                overflow: "hidden",
-              }}
-            >
-              <video
-                ref={previewVideoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  width: "100%",
-                  background: "#0f1115",
-                  aspectRatio: "16 / 9",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  left: 12,
-                  bottom: 12,
-                  padding: "6px 10px",
-                  borderRadius: 999,
-                  background: "rgba(0,0,0,0.65)",
-                  color: "white",
-                  fontSize: 12,
-                  display: "inline-flex",
-                  gap: 8,
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    width: 8,
-                    height: 8,
-                    borderRadius: 999,
-                    background:
-                      previewStatus === "ready" ? "#4ade80" : "#f59e0b",
-                  }}
-                />
-                <span>
-                  {previewStatus === "loading"
-                    ? "Starting preview..."
-                    : previewStatus === "ready"
-                    ? "Preview active"
-                    : "Preview stopped"}
-                </span>
-              </div>
-            </div>
-            <div style={{ marginTop: 12 }}>
-              <p style={{ margin: "0 0 6px", fontSize: 12, opacity: 0.8 }}>
-                Mic level
-              </p>
-              <div
-                style={{
-                  height: 10,
-                  borderRadius: 999,
-                  background: "rgba(255,255,255,0.08)",
-                  overflow: "hidden",
-                  position: "relative",
-                }}
-                aria-label="Microphone level"
-              >
-                <div
-                  style={{
-                    width: `${Math.min(100, Math.round(previewLevel * 130))}%`,
-                    transition: "width 80ms ease-out",
-                    height: "100%",
-                    background: previewLevel > 0.7 ? "#f97316" : "#22c55e",
-                  }}
-                />
-              </div>
-              <div style={{ display: "grid", gap: 6, marginTop: 12 }}>
-                <label style={{ fontSize: 12, opacity: 0.8 }}>
-                  Mic gain preview: {audioSettings.gain.toFixed(2)}x
-                </label>
-                <input
-                  type="range"
-                  min={0.5}
-                  max={2}
-                  step={0.05}
-                  value={audioSettings.gain}
-                  onChange={(event) =>
-                    setAudioSettings((current) => ({
-                      ...current,
-                      gain: Number(event.target.value),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {previewError ? (
-            <p style={{ color: "var(--danger)", margin: 0 }}>{previewError}</p>
-          ) : null}
-          {error ? (
-            <p style={{ color: "var(--danger)", margin: 0 }}>{error}</p>
-          ) : null}
-
-          <div className="grid" style={{ alignItems: "center" }}>
-            <button
-              className="button"
-              onClick={joinRoom}
-              disabled={joinInFlight || previewStatus === "loading"}
-            >
-              {joinInFlight ? "Joining..." : "Join room"}
-            </button>
-            <button
-              type="button"
-              className="button ghost"
-              onClick={startPreview}
-              disabled={previewStatus === "loading"}
-            >
-              {previewStatus === "loading"
-                ? "Refreshing preview..."
-                : "Refresh preview"}
-            </button>
-          </div>
-        </div>
-      </section>
+      <RoomPreview
+        roomId={roomId}
+        previewVideoRef={previewVideoRef}
+        previewStatus={previewStatus}
+        previewError={previewError}
+        previewLevel={previewLevel}
+        audioSettings={audioSettings}
+        error={error}
+        joinInFlight={joinInFlight}
+        onJoin={joinRoom}
+        onRefreshPreview={startPreview}
+        onGainChange={handlePreviewGainChange}
+      />
     );
   }
 
@@ -617,7 +402,7 @@ export default function RoomView({ roomId }: RoomViewProps) {
         participantCount={participants.length}
       />
 
-      <div className={`card ${styles.stage}`}>
+      <div className={styles.stage}>
         <div className={styles.stageBody}>
           <VideoGrid participants={participants} />
         </div>

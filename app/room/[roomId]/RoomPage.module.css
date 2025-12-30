@@ -1,0 +1,24 @@
+.roomPage {
+  min-height: 100svh;
+  padding: clamp(8px, 2vw, 14px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: min(1200px, 100vw);
+  margin: 0 auto;
+  background: radial-gradient(circle at 20% 20%, rgba(61, 124, 252, 0.08), transparent 26%),
+    radial-gradient(circle at 80% 0%, rgba(35, 193, 166, 0.08), transparent 25%),
+    var(--app-background, #0b1120);
+}
+
+@media (min-width: 961px) {
+  .roomPage {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .roomPage {
+    padding: 6px;
+  }
+}

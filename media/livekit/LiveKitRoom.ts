@@ -70,11 +70,22 @@ export class LiveKitRoom implements MediaRoom {
   private chatListeners = new Set<(message: ChatMessage) => void>();
   private stateListeners = new Set<(state: RoomState) => void>();
   private eventsBound = false;
+  private connectionPrepared = false;
+
+  async prepareConnection(options: {
+    url: string;
+    token: string;
+  }): Promise<void> {
+    if (this.connectionPrepared) {
+      return;
+    }
+    await this.room.prepareConnection(options.url, options.token);
+    this.connectionPrepared = true;
+  }
 
   async connect(options: { url: string; token: string }): Promise<void> {
     this.setState("connecting");
-    // pre-warm connection, this can be called as early as your page is loaded
-    await this.room.prepareConnection(options.url, options.token);
+    await this.prepareConnection(options);
     this.bindEvents();
     await this.room.connect(options.url, options.token);
     await this.room.localParticipant.enableCameraAndMicrophone();
@@ -88,6 +99,7 @@ export class LiveKitRoom implements MediaRoom {
 
   async disconnect(): Promise<void> {
     this.room.disconnect();
+    this.connectionPrepared = false;
     this.refreshParticipants();
     this.setState("disconnected");
   }

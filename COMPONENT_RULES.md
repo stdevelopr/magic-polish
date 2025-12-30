@@ -4,10 +4,12 @@ Use this file as the default checklist when adding or refactoring UI components.
 
 ## Structure
 - For route segments (e.g. `app/room/[roomId]`), keep only `page.tsx` and `page.module.css` in the route folder.
+- Route pages render a single top-level component that lives outside the route folder (e.g. `components/home/home.component.tsx`).
 - Place rendered UI in a subfolder named after the component (kebab-case), e.g. `room-view/`.
 - The top-level folder uses `folder-name.component.tsx` and `folder-name.module.css`.
 - Components rendered inside that folder live in their own subfolders and follow `ComponentName/ComponentName.tsx` and `ComponentName.module.css`.
-- Shared UI lives in `app/shared-components/` and each component has its own folder with `ComponentName/ComponentName.tsx` and `ComponentName.module.css`.
+- Page-scoped UI lives under a page folder (e.g. `components/home/ComponentName/`) and each component has its own folder with `ComponentName/ComponentName.tsx` and `ComponentName.module.css`.
+- Shared UI (used across routes) lives in `app/components/atoms`, `app/components/molecules`, or `app/components/organisms`.
 - Colocate helpers and types as `folder-name.helper.ts` and `folder-name.types.ts`.
 - Keep one component per `.component.tsx`.
 

@@ -15,7 +15,7 @@ import RoomHeader from "./RoomHeader/RoomHeader";
 import RoomPreview from "./RoomPreview/RoomPreview";
 import VideoGrid from "./VideoGrid/VideoGrid";
 import SettingsSheet from "./SettingsSheet/SettingsSheet";
-import styles from "./room-view.module.css";
+import styles from "./roomView.module.css";
 import {
   createLocalTracks,
   Track,

@@ -1,4 +1,4 @@
-import RoomView from "./room-view/room-view.component";
+import RoomView from "./roomView/roomView.component";
 import styles from "./page.module.css";
 
 type RoomPageProps = {

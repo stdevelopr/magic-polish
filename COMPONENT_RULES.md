@@ -3,10 +3,12 @@
 Use this file as the default checklist when adding or refactoring UI components.
 
 ## Structure
-- Create a folder per component: `ComponentName/`.
-- Inside the folder, keep `ComponentName.tsx` and `ComponentName.module.css`.
-- Export the component as the default export from `ComponentName.tsx`.
-- Keep exactly one component per file.
+- For route segments (e.g. `app/room/[roomId]`), keep only `page.tsx` and `page.module.css` in the route folder.
+- Place rendered UI in a subfolder named after the component (kebab-case), e.g. `room-view/`.
+- The top-level folder uses `folder-name.component.tsx` and `folder-name.module.css`.
+- Components rendered inside that folder live in their own subfolders and follow `ComponentName/ComponentName.tsx` and `ComponentName.module.css`.
+- Colocate helpers and types as `folder-name.helper.ts` and `folder-name.types.ts`.
+- Keep one component per `.component.tsx`.
 
 ## Styling
 - Use CSS Modules for component-specific styles.
@@ -28,7 +30,12 @@ Use this file as the default checklist when adding or refactoring UI components.
 
 ## Example
 ```
-app/room/[roomId]/components/Example/
-  Example.tsx
-  Example.module.css
+app/room/[roomId]/page.tsx
+app/room/[roomId]/page.module.css
+app/room/[roomId]/room-view/
+  room-view.component.tsx
+  room-view.module.css
+  RoomHeader/
+    RoomHeader.tsx
+    RoomHeader.module.css
 ```

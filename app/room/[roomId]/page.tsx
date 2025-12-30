@@ -1,5 +1,5 @@
-import RoomView from "./RoomView";
-import styles from "./RoomPage.module.css";
+import RoomView from "./room-view/room-view.component";
+import styles from "./page.module.css";
 
 type RoomPageProps = {
   params: { roomId: string };

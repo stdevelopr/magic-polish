@@ -7,15 +7,15 @@ import type {
   ChatMessage,
   RoomState,
   LocalAudioSettings,
-} from "../../../media/core/MediaRoom";
-import type { Participant } from "../../../media/core/Participant";
-import { createMediaProvider } from "../../../media/MediaProvider";
-import ActionBar from "./components/ActionBar/ActionBar";
-import RoomHeader from "./components/RoomHeader/RoomHeader";
-import RoomPreview from "./components/RoomPreview/RoomPreview";
-import VideoGrid from "./components/VideoGrid/VideoGrid";
-import SettingsSheet from "./components/SettingsSheet/SettingsSheet";
-import styles from "./RoomView.module.css";
+} from "../../../../media/core/MediaRoom";
+import type { Participant } from "../../../../media/core/Participant";
+import { createMediaProvider } from "../../../../media/MediaProvider";
+import ActionBar from "./ActionBar/ActionBar";
+import RoomHeader from "./RoomHeader/RoomHeader";
+import RoomPreview from "./RoomPreview/RoomPreview";
+import VideoGrid from "./VideoGrid/VideoGrid";
+import SettingsSheet from "./SettingsSheet/SettingsSheet";
+import styles from "./room-view.module.css";
 import {
   createLocalTracks,
   Track,

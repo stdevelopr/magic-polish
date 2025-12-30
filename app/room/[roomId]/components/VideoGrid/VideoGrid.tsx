@@ -31,19 +31,8 @@ function ParticipantTile({
 }) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const audioSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const audioCompressorRef = useRef<DynamicsCompressorNode | null>(null);
-  const audioLimiterRef = useRef<DynamicsCompressorNode | null>(null);
-  const audioHighpassRef = useRef<BiquadFilterNode | null>(null);
-  const audioPresenceRef = useRef<BiquadFilterNode | null>(null);
-  const audioGainRef = useRef<GainNode | null>(null);
-  const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(
-    null
-  );
   const attachedVideoTrackIdRef = useRef<string | null>(null);
   const attachedVideoTrackRef = useRef<VideoTrack | null>(null);
-  const [volume, setVolume] = useState(250);
   const isPip = variant === "pip";
 
   const videoTrackSignature = useMemo(
@@ -141,26 +130,6 @@ function ParticipantTile({
       return;
     }
 
-    const cleanupAudioGraph = () => {
-      audioSourceRef.current?.disconnect();
-      audioCompressorRef.current?.disconnect();
-      audioLimiterRef.current?.disconnect();
-      audioHighpassRef.current?.disconnect();
-      audioPresenceRef.current?.disconnect();
-      audioGainRef.current?.disconnect();
-      audioDestinationRef.current?.disconnect();
-      audioSourceRef.current = null;
-      audioCompressorRef.current = null;
-      audioLimiterRef.current = null;
-      audioHighpassRef.current = null;
-      audioPresenceRef.current = null;
-      audioGainRef.current = null;
-      audioDestinationRef.current = null;
-    };
-
-    // Clean up any previous audio graph
-    cleanupAudioGraph();
-
     if (!audioStream.getAudioTracks().length) {
       audioRef.current.srcObject = null;
       return;
@@ -173,99 +142,11 @@ function ParticipantTile({
       return;
     }
 
-    const attachDirectStream = () => {
-      if (!audioRef.current) {
-        return;
-      }
-      audioRef.current.srcObject = audioStream;
-      audioRef.current.muted = false;
-      audioRef.current.volume = Math.min(1, Math.max(0, volume / 100));
-      audioRef.current.play().catch(() => undefined);
-    };
-
-    const context = audioContextRef.current ?? new AudioContext();
-    audioContextRef.current = context;
-    if (context.state === "suspended") {
-      context.resume().catch(() => undefined);
-    }
-    if (context.state === "suspended") {
-      attachDirectStream();
-      return;
-    }
-
-    const source = context.createMediaStreamSource(audioStream);
-    const highpass = context.createBiquadFilter();
-    highpass.type = "highpass";
-    highpass.frequency.value = 80;
-
-    const presence = context.createBiquadFilter();
-    presence.type = "peaking";
-    presence.frequency.value = 3200;
-    presence.Q.value = 1;
-    presence.gain.value = 2.5;
-
-    const compressor = context.createDynamicsCompressor();
-    compressor.threshold.value = -24;
-    compressor.knee.value = 18;
-    compressor.ratio.value = 3;
-    compressor.attack.value = 0.003;
-    compressor.release.value = 0.18;
-
-    const limiter = context.createDynamicsCompressor();
-    limiter.threshold.value = -2;
-    limiter.knee.value = 0;
-    limiter.ratio.value = 20;
-    limiter.attack.value = 0.002;
-    limiter.release.value = 0.15;
-
-    const gainNode = context.createGain();
-    const destination = context.createMediaStreamDestination();
-    source.connect(highpass);
-    highpass.connect(presence);
-    presence.connect(compressor);
-    compressor.connect(limiter);
-    limiter.connect(gainNode);
-    gainNode.connect(destination);
-    audioRef.current.srcObject = destination.stream;
+    audioRef.current.srcObject = audioStream;
     audioRef.current.muted = false;
-    audioRef.current.play().catch(() => {
-      cleanupAudioGraph();
-      attachDirectStream();
-    });
-
-    audioSourceRef.current = source;
-    audioCompressorRef.current = compressor;
-    audioLimiterRef.current = limiter;
-    audioHighpassRef.current = highpass;
-    audioPresenceRef.current = presence;
-    audioGainRef.current = gainNode;
-    audioDestinationRef.current = destination;
-  }, [audioStream, participant.isLocal, volume]);
-
-  useEffect(() => {
-    if (participant.isLocal) {
-      return;
-    }
-    if (audioGainRef.current) {
-      audioGainRef.current.gain.value = Math.min(
-        3.5,
-        Math.max(0, volume / 100)
-      );
-    }
-  }, [volume, participant.isLocal]);
-
-  useEffect(() => {
-    return () => {
-      audioSourceRef.current?.disconnect();
-      audioCompressorRef.current?.disconnect();
-      audioLimiterRef.current?.disconnect();
-      audioHighpassRef.current?.disconnect();
-      audioPresenceRef.current?.disconnect();
-      audioGainRef.current?.disconnect();
-      audioDestinationRef.current?.disconnect();
-      audioContextRef.current?.close();
-    };
-  }, []);
+    audioRef.current.volume = 1;
+    audioRef.current.play().catch(() => undefined);
+  }, [audioStream, participant.isLocal]);
 
   useEffect(() => {
     if (participant.isLocal) {
@@ -279,10 +160,8 @@ function ParticipantTile({
       if (!element.srcObject && audioStream.getAudioTracks().length) {
         element.srcObject = audioStream;
       }
-      if (audioContextRef.current?.state === "suspended") {
-        audioContextRef.current.resume().catch(() => undefined);
-      }
       element.muted = false;
+      element.volume = 1;
       element.play().catch(() => undefined);
     };
     window.addEventListener("media:resume-audio", handler);

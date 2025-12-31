@@ -9,7 +9,10 @@ type AudioToggleKey = 'noiseSuppression' | 'echoCancellation' | 'autoGainControl
 type SettingsSheetProps = {
   open: boolean;
   audioSettings: LocalAudioSettings;
+  audioInputDevices: MediaDeviceInfo[];
+  selectedAudioInputId: string;
   onUpdateAudioSettings: (settings: LocalAudioSettings) => void;
+  onSelectAudioInput: (deviceId: string) => void;
   onClose: () => void;
 };
 
@@ -31,10 +34,20 @@ const toggleOptions: Array<{ key: AudioToggleKey; label: string; description: st
   }
 ];
 
-export default function SettingsSheet({ open, audioSettings, onUpdateAudioSettings, onClose }: SettingsSheetProps) {
+export default function SettingsSheet({
+  open,
+  audioSettings,
+  audioInputDevices,
+  selectedAudioInputId,
+  onUpdateAudioSettings,
+  onSelectAudioInput,
+  onClose,
+}: SettingsSheetProps) {
   if (!open) {
     return null;
   }
+
+  const hasInputs = audioInputDevices.length > 0;
 
   return (
     <div className={styles.overlay} role="dialog" aria-modal="true" aria-label="Audio settings" onClick={onClose}>
@@ -59,6 +72,26 @@ export default function SettingsSheet({ open, audioSettings, onUpdateAudioSettin
             <p className={styles.metaTitle}>Live adjustments</p>
             <p className={styles.metaCopy}>Changes apply instantly so you can hear the difference.</p>
           </div>
+        </div>
+
+        <div className={styles.deviceCard}>
+          <div className={styles.deviceHeader}>
+            <p className={styles.deviceLabel}>Microphone</p>
+            <p className={styles.deviceHint}>Choose which mic the class hears.</p>
+          </div>
+          <select
+            className={styles.deviceSelect}
+            value={selectedAudioInputId}
+            onChange={(event) => onSelectAudioInput(event.target.value)}
+          >
+            <option value="">System default</option>
+            {audioInputDevices.map((device, index) => (
+              <option key={device.deviceId} value={device.deviceId}>
+                {device.label || `Microphone ${index + 1}`}
+              </option>
+            ))}
+            {!hasInputs ? <option disabled>No microphones detected</option> : null}
+          </select>
         </div>
 
         <div className={styles.toggleList}>

@@ -28,6 +28,7 @@ export class LiveKitRoom implements MediaRoom {
     noiseSuppression: true,
     gain: 1,
   };
+  private audioInputId: string | null = null;
   // Prioritize stable voice capture with high-fidelity publish settings.
   private readonly audioCaptureDefaults = {
     channelCount: 1,
@@ -70,6 +71,7 @@ export class LiveKitRoom implements MediaRoom {
     (participants: Participant[]) => void
   >();
   private chatListeners = new Set<(message: ChatMessage) => void>();
+  private dataListeners = new Map<string, Set<(payload: unknown) => void>>();
   private stateListeners = new Set<(state: RoomState) => void>();
   private eventsBound = false;
   private connectionPrepared = false;
@@ -80,6 +82,7 @@ export class LiveKitRoom implements MediaRoom {
       autoGainControl: settings.gain === 1 ? settings.autoGainControl : false,
       echoCancellation: settings.echoCancellation,
       noiseSuppression: settings.noiseSuppression,
+      ...(this.audioInputId ? { deviceId: this.audioInputId } : {}),
     };
   }
 
@@ -99,7 +102,8 @@ export class LiveKitRoom implements MediaRoom {
     await this.prepareConnection(options);
     this.bindEvents();
     await this.room.connect(options.url, options.token);
-    await this.room.localParticipant.enableCameraAndMicrophone();
+    await this.room.localParticipant.setCameraEnabled(true);
+    await this.setLocalAudioEnabled(true);
     this.refreshParticipants();
     this.setState("connected");
   }
@@ -134,6 +138,13 @@ export class LiveKitRoom implements MediaRoom {
     this.room.localParticipant.publishData(encoded, { reliable: true });
   }
 
+  sendData(channel: string, payload: unknown): void {
+    const encoded = new TextEncoder().encode(
+      JSON.stringify({ topic: channel, payload })
+    );
+    this.room.localParticipant.publishData(encoded, { reliable: false });
+  }
+
   async setLocalAudioEnabled(enabled: boolean): Promise<void> {
     if (enabled) {
       await this.room.localParticipant.setMicrophoneEnabled(
@@ -154,6 +165,34 @@ export class LiveKitRoom implements MediaRoom {
 
   async setLocalVideoEnabled(enabled: boolean): Promise<void> {
     await this.room.localParticipant.setCameraEnabled(enabled);
+    this.refreshParticipants();
+  }
+
+  async setMicrophoneDevice(deviceId: string | null): Promise<void> {
+    const nextDeviceId = deviceId || null;
+    if (this.audioInputId === nextDeviceId) {
+      return;
+    }
+    this.audioInputId = nextDeviceId;
+
+    const local = this.room.localParticipant;
+    const micPublication = local.getTrackPublication(Track.Source.Microphone);
+    const micEnabled = Boolean(
+      micPublication?.track && !micPublication.isMuted
+    );
+    if (!micEnabled) {
+      return;
+    }
+
+    await local.setMicrophoneEnabled(false);
+    await local.setMicrophoneEnabled(
+      true,
+      {
+        ...this.getAudioCaptureOptions(this.audioSettings),
+        ...(this.audioSettings.gain !== 1 ? { processor: this.gainProcessor } : {}),
+      },
+      this.audioPublishDefaults
+    );
     this.refreshParticipants();
   }
 
@@ -213,6 +252,22 @@ export class LiveKitRoom implements MediaRoom {
     return () => this.chatListeners.delete(listener);
   }
 
+  onData(channel: string, handler: (payload: unknown) => void): () => void {
+    const listeners = this.dataListeners.get(channel) ?? new Set();
+    listeners.add(handler);
+    this.dataListeners.set(channel, listeners);
+    return () => {
+      const active = this.dataListeners.get(channel);
+      if (!active) {
+        return;
+      }
+      active.delete(handler);
+      if (!active.size) {
+        this.dataListeners.delete(channel);
+      }
+    };
+  }
+
   onStateChanged(listener: (state: RoomState) => void): () => void {
     this.stateListeners.add(listener);
     listener(this.state);
@@ -224,9 +279,6 @@ export class LiveKitRoom implements MediaRoom {
       return;
     }
     this.eventsBound = true;
-    this.room.on(RoomEvent.ActiveSpeakersChanged, () =>
-      this.refreshParticipants()
-    );
     this.room.on(RoomEvent.ParticipantConnected, () =>
       this.refreshParticipants()
     );
@@ -261,18 +313,27 @@ export class LiveKitRoom implements MediaRoom {
         const parsed = JSON.parse(decoded) as {
           topic?: string;
           message?: string;
+          payload?: unknown;
         };
-        if (parsed.topic !== CHAT_TOPIC || !parsed.message) {
+        if (parsed.topic === CHAT_TOPIC && parsed.message) {
+          const chat: ChatMessage = {
+            id: crypto.randomUUID(),
+            participantId: participant.identity,
+            participantName: participant.name ?? participant.identity,
+            message: parsed.message,
+            timestamp: Date.now(),
+          };
+          this.chatListeners.forEach((listener) => listener(chat));
           return;
         }
-        const chat: ChatMessage = {
-          id: crypto.randomUUID(),
-          participantId: participant.identity,
-          participantName: participant.name ?? participant.identity,
-          message: parsed.message,
-          timestamp: Date.now(),
-        };
-        this.chatListeners.forEach((listener) => listener(chat));
+        if (!parsed.topic) {
+          return;
+        }
+        const listeners = this.dataListeners.get(parsed.topic);
+        if (!listeners?.size) {
+          return;
+        }
+        listeners.forEach((listener) => listener(parsed.payload));
       } catch (error) {
         return;
       }
@@ -289,9 +350,6 @@ export class LiveKitRoom implements MediaRoom {
 
   private refreshParticipants(): void {
     const participants: Participant[] = [];
-    const activeSpeakers = new Set(
-      this.room.activeSpeakers.map((speaker) => speaker.identity)
-    );
 
     const local = this.room.localParticipant;
     if (local) {
@@ -299,7 +357,6 @@ export class LiveKitRoom implements MediaRoom {
         id: local.identity,
         name: local.name ?? "You",
         isLocal: true,
-        isSpeaking: activeSpeakers.has(local.identity),
         tracks: this.collectTracks(local.trackPublications.values()),
       });
     }
@@ -319,7 +376,6 @@ export class LiveKitRoom implements MediaRoom {
         id: remote.identity,
         name: remote.name ?? remote.identity,
         isLocal: false,
-        isSpeaking: activeSpeakers.has(remote.identity),
         tracks: this.collectTracks(remote.trackPublications.values()),
       });
     }

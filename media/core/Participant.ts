@@ -13,6 +13,5 @@ export interface Participant {
   id: string;
   name: string;
   isLocal: boolean;
-  isSpeaking?: boolean;
   tracks: MediaTrack[];
 }

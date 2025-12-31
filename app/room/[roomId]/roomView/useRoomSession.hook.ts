@@ -205,6 +205,10 @@ export function useRoomSession({
   const [audioSettings, setAudioSettings] = useState<LocalAudioSettings>(
     DEFAULT_AUDIO_SETTINGS
   );
+  const [audioInputDevices, setAudioInputDevices] = useState<MediaDeviceInfo[]>(
+    []
+  );
+  const [selectedAudioInputId, setSelectedAudioInputId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const joinInFlightRef = useRef(false);
   const { participants, messages, roomState, setMessages, resetRoomState } =
@@ -219,6 +223,58 @@ export function useRoomSession({
     getConnectionToken,
   });
 
+  const refreshAudioInputs = useCallback(async () => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.enumerateDevices
+    ) {
+      return;
+    }
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      setAudioInputDevices(
+        devices.filter((device) => device.kind === "audioinput")
+      );
+    } catch {
+      // Ignore device enumeration errors.
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAudioInputs().catch(() => undefined);
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.addEventListener
+    ) {
+      return;
+    }
+    const handleDeviceChange = () => {
+      refreshAudioInputs().catch(() => undefined);
+    };
+    navigator.mediaDevices.addEventListener(
+      "devicechange",
+      handleDeviceChange
+    );
+    return () => {
+      navigator.mediaDevices.removeEventListener(
+        "devicechange",
+        handleDeviceChange
+      );
+    };
+  }, [refreshAudioInputs]);
+
+  useEffect(() => {
+    if (!selectedAudioInputId) {
+      return;
+    }
+    const exists = audioInputDevices.some(
+      (device) => device.deviceId === selectedAudioInputId
+    );
+    if (!exists) {
+      setSelectedAudioInputId("");
+    }
+  }, [audioInputDevices, selectedAudioInputId]);
+
   const joinRoom = useCallback(async () => {
     if (joinInFlightRef.current || room) {
       return false;
@@ -231,6 +287,9 @@ export function useRoomSession({
       const token = await getConnectionToken();
       const nextRoom = preparedRoomRef.current ?? provider.createRoom();
       preparedRoomRef.current = null;
+      if (selectedAudioInputId) {
+        await nextRoom.setMicrophoneDevice(selectedAudioInputId);
+      }
       await nextRoom.prepareConnection({ url, token });
       await nextRoom.startAudio().catch(() => undefined);
       await nextRoom.connect({ url, token });
@@ -248,7 +307,7 @@ export function useRoomSession({
       joinInFlightRef.current = false;
       setJoinInFlight(false);
     }
-  }, [getConnectionToken, provider, room]);
+  }, [getConnectionToken, provider, room, selectedAudioInputId]);
 
   const leaveRoom = useCallback(async () => {
     if (!room) {
@@ -308,6 +367,17 @@ export function useRoomSession({
     [room]
   );
 
+  const selectAudioInput = useCallback(
+    async (deviceId: string) => {
+      setSelectedAudioInputId(deviceId);
+      if (!room) {
+        return;
+      }
+      await room.setMicrophoneDevice(deviceId || null);
+    },
+    [room]
+  );
+
   const setPreviewGain = useCallback((gain: number) => {
     setAudioSettings((current) => ({ ...current, gain }));
   }, []);
@@ -323,6 +393,8 @@ export function useRoomSession({
     audioEnabled,
     videoEnabled,
     audioSettings,
+    audioInputDevices,
+    selectedAudioInputId,
     error,
     joinRoom,
     leaveRoom,
@@ -330,6 +402,7 @@ export function useRoomSession({
     toggleAudio,
     toggleVideo,
     updateAudioSettings,
+    selectAudioInput,
     setPreviewGain,
   };
 }

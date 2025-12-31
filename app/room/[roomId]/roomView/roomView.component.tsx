@@ -8,6 +8,7 @@ import RoomHeader from "./RoomHeader/RoomHeader";
 import RoomPreview from "./RoomPreview/RoomPreview";
 import VideoGrid from "./VideoGrid/VideoGrid";
 import SettingsSheet from "./SettingsSheet/SettingsSheet";
+import Whiteboard from "./Whiteboard/Whiteboard";
 import styles from "./roomView.module.css";
 import { createParticipantName } from "./roomView.helpers";
 import { useRoomPreview } from "./useRoomPreview.hook";
@@ -31,12 +32,15 @@ export default function RoomView({ roomId }: RoomViewProps) {
     audioEnabled,
     videoEnabled,
     audioSettings,
+    audioInputDevices,
+    selectedAudioInputId,
     error,
     joinRoom,
     leaveRoom,
     toggleAudio,
     toggleVideo,
     updateAudioSettings,
+    selectAudioInput,
     setPreviewGain,
   } = useRoomSession({
     roomId,
@@ -90,6 +94,7 @@ export default function RoomView({ roomId }: RoomViewProps) {
       <div className={styles.stage}>
         <div className={styles.stageBody}>
           <VideoGrid participants={participants} />
+          <Whiteboard room={room} />
         </div>
       </div>
 
@@ -107,7 +112,10 @@ export default function RoomView({ roomId }: RoomViewProps) {
       <SettingsSheet
         open={showSettings}
         audioSettings={audioSettings}
+        audioInputDevices={audioInputDevices}
+        selectedAudioInputId={selectedAudioInputId}
         onUpdateAudioSettings={updateAudioSettings}
+        onSelectAudioInput={selectAudioInput}
         onClose={() => setShowSettings(false)}
       />
     </section>

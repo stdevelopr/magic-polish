@@ -26,10 +26,13 @@ export interface MediaRoom {
   getLocalParticipant(): Participant | null;
   getParticipants(): Participant[];
   sendChatMessage(message: string): void;
+  sendData(channel: string, payload: unknown): void;
   setLocalAudioEnabled(enabled: boolean): Promise<void>;
   setLocalVideoEnabled(enabled: boolean): Promise<void>;
+  setMicrophoneDevice(deviceId: string | null): Promise<void>;
   updateLocalAudioSettings(settings: LocalAudioSettings): Promise<void>;
   onParticipantsChanged(listener: (participants: Participant[]) => void): () => void;
   onChatMessage(listener: (message: ChatMessage) => void): () => void;
+  onData(channel: string, handler: (payload: unknown) => void): () => void;
   onStateChanged(listener: (state: RoomState) => void): () => void;
 }
